@@ -1,14 +1,15 @@
 import { redis } from '../devvitProxy/index.ts';
 import { keys } from './keys.ts';
 import { UserProfile, Consejero } from '../../shared/types/index.ts';
+import {
+  DEFAULT_CONSEJEROS,
+  ADVISOR_CATALOG,
+  advisorOrder,
+  MAX_CONSEJERO_LEVEL,
+} from './advisors.ts';
 
 const INITIAL_GOLD = 1000;
 const INITIAL_SETTLEMENT_LEVEL = 1;
-const DEFAULT_CONSEJEROS = [
-  { id: 'c1', name: 'Consejero de Guerra', affinity: 'OFE', level: 1 },
-  { id: 'c2', name: 'Albañil del Muro', affinity: 'DEF', level: 1 },
-  { id: 'c3', name: 'Maestre de Cuentas', affinity: 'MAN', level: 1 },
-];
 
 export async function getUserProfile(userId: string): Promise<UserProfile> {
   const userKey = keys.user(userId);
@@ -54,19 +55,49 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
 
 export async function getUserConsejeros(userId: string): Promise<Consejero[]> {
   const advisorsKey = keys.userConsejeros(userId);
-  const profile = await getUserProfile(userId); // Ensures initialization
+  await getUserProfile(userId); // Ensures initialization (seeds default advisors)
+
+  // Enumerar TODOS los consejeros poseídos (incluye los adquiridos vía reto diario),
+  // resolviendo identidad desde el catálogo. El hash guarda solo id -> nivel.
+  const owned = await redis.hGetAll(advisorsKey);
 
   const results: Consejero[] = [];
-  for (const c of DEFAULT_CONSEJEROS) {
-    const lvlStr = await redis.hGet(advisorsKey, c.id);
-    const level = lvlStr ? parseInt(lvlStr, 10) : 1;
+  for (const [id, lvlStr] of Object.entries(owned)) {
+    const base = ADVISOR_CATALOG[id];
+    if (!base) continue; // id desconocido (dato corrupto/legado): se ignora con seguridad
+    const level = parseInt(lvlStr, 10);
     results.push({
-      ...c,
-      level,
+      id: base.id,
+      name: base.name,
+      affinity: base.affinity,
+      level: Number.isFinite(level) && level > 0 ? level : 1,
     });
   }
 
+  results.sort((a, b) => advisorOrder(a.id) - advisorOrder(b.id));
   return results;
+}
+
+/**
+ * Concede un consejero al usuario (nivel 1) si aún no lo posee. Idempotente
+ * respecto a la posesión: si ya lo tiene, no hace nada y devuelve null.
+ * La identidad se resuelve desde el catálogo.
+ */
+export async function grantConsejero(
+  userId: string,
+  advisorId: string
+): Promise<Consejero | null> {
+  const base = ADVISOR_CATALOG[advisorId];
+  if (!base) return null;
+
+  const advisorsKey = keys.userConsejeros(userId);
+  await getUserProfile(userId); // Ensure init
+
+  const existing = await redis.hGet(advisorsKey, advisorId);
+  if (existing) return null; // ya lo posee
+
+  await redis.hSet(advisorsKey, { [advisorId]: '1' });
+  return { id: base.id, name: base.name, affinity: base.affinity, level: 1 };
 }
 
 export async function adjustGold(userId: string, amount: number): Promise<number> {
@@ -121,8 +152,8 @@ export async function levelConsejero(
   const userKey = keys.user(userId);
   const advisorsKey = keys.userConsejeros(userId);
 
-  // Validate advisor exists
-  const baseAdvisor = DEFAULT_CONSEJEROS.find(c => c.id === advisorId);
+  // Validate advisor exists in the catalog
+  const baseAdvisor = ADVISOR_CATALOG[advisorId];
   if (!baseAdvisor) {
     throw new Error('ADVISOR_NOT_FOUND: El consejero especificado no existe.');
   }
@@ -132,7 +163,20 @@ export async function levelConsejero(
 
     const profile = await getUserProfile(userId);
     const lvlStr = await redis.hGet(advisorsKey, advisorId);
-    const currentLevel = lvlStr ? parseInt(lvlStr, 10) : 1;
+
+    // Ownership: solo puedes subir de nivel consejeros que posees (security.spec).
+    if (!lvlStr) {
+      await redis.unwatch();
+      throw new Error('FORBIDDEN: No posees este consejero.');
+    }
+
+    const currentLevel = parseInt(lvlStr, 10) || 1;
+
+    // Tope de nivel máximo (meta-progression.spec §Consejero Leveling sad path).
+    if (currentLevel >= MAX_CONSEJERO_LEVEL) {
+      await redis.unwatch();
+      throw new Error(`MAX_LEVEL_REACHED: El consejero ya está en su nivel máximo (${MAX_CONSEJERO_LEVEL}).`);
+    }
 
     // Cost formula: level * 150 gold
     const cost = currentLevel * 150;

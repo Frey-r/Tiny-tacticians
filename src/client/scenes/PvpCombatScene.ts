@@ -12,11 +12,18 @@ import type { BattleResult, BattleRound } from '../../shared/types/index.ts';
 interface CombatData {
   battleResult: BattleResult;
   rewards: { goldEarned: number; scoreEarned: number };
+  // Escena a la que volver al terminar (por defecto 'Home').
+  returnScene?: string;
+  // Nota a mostrar en lugar de la línea de recompensa (p. ej. combate diario:
+  // la recompensa se reclama aparte en Eventos).
+  note?: string;
 }
 
 export class PvpCombatScene extends Phaser.Scene {
   private battle!: BattleResult;
   private rewards!: { goldEarned: number; scoreEarned: number };
+  private returnScene = 'Home';
+  private note?: string;
   private idx = -1;
   private maxA = 100;
   private maxB = 100;
@@ -35,6 +42,8 @@ export class PvpCombatScene extends Phaser.Scene {
   init(data: CombatData): void {
     this.battle = data.battleResult;
     this.rewards = data.rewards || { goldEarned: 0, scoreEarned: 0 };
+    this.returnScene = data.returnScene || 'Home';
+    this.note = data.note;
     this.idx = -1;
     this.finished = false;
   }
@@ -150,14 +159,21 @@ export class PvpCombatScene extends Phaser.Scene {
       titleText(this, GAME_W / 2, 668, attackerWon ? '🏆 ¡VICTORIA!' : '💀 DERROTA', 18, attackerWon ? 0x2e6b2e : COLORS.danger)
     );
     panel.add(
-      bodyText(this, GAME_W / 2, 706, `Recompensa: +${this.rewards.goldEarned} oro  ·  +${this.rewards.scoreEarned} pts`, 14, COLORS.ink)
+      bodyText(
+        this,
+        GAME_W / 2,
+        706,
+        this.note ?? `Recompensa: +${this.rewards.goldEarned} oro  ·  +${this.rewards.scoreEarned} pts`,
+        14,
+        COLORS.ink
+      )
     );
     panel.add(
-      retroButton(this, GAME_W / 2, 748, 'IR AL INICIO', {
+      retroButton(this, GAME_W / 2, 748, this.returnScene === 'Home' ? 'IR AL INICIO' : 'VOLVER', {
         width: 280,
         height: 48,
         fontSize: 13,
-        onClick: () => this.scene.start('Home'),
+        onClick: () => this.scene.start(this.returnScene),
       })
     );
   }

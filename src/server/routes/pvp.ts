@@ -7,9 +7,11 @@ import { recordBattleRewards } from '../core/rewards.ts';
 import { redis } from '../devvitProxy/index.ts';
 import { keys } from '../core/keys.ts';
 import { checkAndLockIdempotency, saveIdempotency } from '../core/idempotency.ts';
+import { checkRateLimit } from '../core/rateLimit.ts';
 
 const router = Router();
 const BATTLE_TTL_SECONDS = 86400; // 24 hours
+const PVP_BATTLES_PER_HOUR = 60; // anti-abuso de leaderboard/economía (security.spec)
 
 // POST /api/pvp/battle - Matchmake, simulate battle, and award gold/leaderboard points
 router.post('/battle', async (req, res) => {
@@ -29,6 +31,10 @@ router.post('/battle', async (req, res) => {
       }
     }
 
+    // Rate limit tras la verificación de idempotencia: los reintentos cacheados no
+    // consumen cuota, pero las batallas nuevas sí (evita inflar el leaderboard).
+    await checkRateLimit('pvp', userId, PVP_BATTLES_PER_HOUR, 3600_000);
+
     // 1. Fetch and verify attacker general
     const attacker = await getGeneral(attackerId);
     if (!attacker) {
@@ -39,8 +45,11 @@ router.post('/battle', async (req, res) => {
     // 2. Perform matchmaking to find opponent
     const opponent = await findOpponent(userId, attacker);
 
-    // 3. Simulate the battle deterministically
-    const battleSeed = `seed_bat_${Math.random().toString(36).substring(2, 15)}_${Date.now()}`;
+    // 3. Simulate the battle with a REPRODUCIBLE seed derivada de las entradas de
+    //    los generales y el contexto de la petición (idempToken). Persistimos la
+    //    semilla con el resultado para permitir replay determinista (combat-pvp.spec).
+    const seedContext = idempToken || `${attacker.seed}:${opponent.seed}`;
+    const battleSeed = `bat_${attacker.id}:${opponent.id}:${seedContext}`;
     const battleResult = simulateBattle(battleSeed, attacker, opponent);
 
     // 4. Persist battle replay with TTL

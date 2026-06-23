@@ -10,6 +10,7 @@ import { seedNPCs } from './core/npc.ts';
 import metaRouter from './routes/meta.ts';
 import runRouter from './routes/run.ts';
 import pvpRouter from './routes/pvp.ts';
+import dailyRouter from './routes/daily.ts';
 import internalRouter from './routes/internal.ts';
 import devvitInternalRouter from './routes/devvitInternal.ts';
 
@@ -61,6 +62,7 @@ if (isDev) {
 app.use('/api', metaRouter);
 app.use('/api/run', runRouter);
 app.use('/api/pvp', pvpRouter);
+app.use('/api/daily', dailyRouter);
 app.use('/api/internal', internalRouter);
 // Endpoints invocados por Devvit (menú / triggers) — deben colgar de /internal/*
 app.use('/internal', devvitInternalRouter);

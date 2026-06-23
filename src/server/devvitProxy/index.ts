@@ -15,6 +15,7 @@ export interface DevvitRedis {
   set(key: string, value: string, options?: { expiration?: number | Date; nx?: boolean }): Promise<void>;
   del(key: string | string[]): Promise<number>;
   hGet(key: string, field: string): Promise<string | null>;
+  hGetAll(key: string): Promise<Record<string, string>>;
   hSet(key: string, fieldValues: Record<string, string>): Promise<number>;
   hIncrBy(key: string, field: string, increment: number): Promise<number>;
   zAdd(key: string, ...members: { member: string; score: number }[]): Promise<number>;
@@ -79,6 +80,12 @@ class InMemoryRedis implements DevvitRedis {
     const hash = this.store.get(key);
     if (!hash || !(hash instanceof Map)) return null;
     return hash.get(field) || null;
+  }
+
+  async hGetAll(key: string) {
+    const hash = this.store.get(key);
+    if (!hash || !(hash instanceof Map)) return {};
+    return Object.fromEntries(hash.entries()) as Record<string, string>;
   }
 
   async hSet(key: string, fieldValues: Record<string, string>) {
@@ -310,6 +317,15 @@ const localRedisProxy: DevvitRedis = {
       return await testRedis.hGet(key, field);
     }
   },
+  async hGetAll(key: string) {
+    if (useInMemoryFallback) return await testRedis.hGetAll(key);
+    try {
+      return await localRedis!.hgetall(key);
+    } catch {
+      useInMemoryFallback = true;
+      return await testRedis.hGetAll(key);
+    }
+  },
   async hSet(key: string, fieldValues: Record<string, string>) {
     if (useInMemoryFallback) return await testRedis.hSet(key, fieldValues);
     try {
@@ -531,6 +547,9 @@ const devvitRedisProxy: DevvitRedis = {
   async hGet(key, field) {
     return (await webServer.redis.hGet(key, field)) ?? null;
   },
+  async hGetAll(key) {
+    return (await webServer.redis.hGetAll(key)) ?? {};
+  },
   async hSet(key, fieldValues) {
     return await webServer.redis.hSet(key, fieldValues);
   },
@@ -625,59 +644,15 @@ const devvitRedisProxy: DevvitRedis = {
   },
 };
 
-let useLocalFallback = false;
-
-const devvitRedisProxyWithFallback: DevvitRedis = {} as DevvitRedis;
-
-function wrapRedisMethod(methodName: keyof DevvitRedis) {
-  const original = devvitRedisProxy[methodName];
-  if (methodName === 'multi') {
-    return function() {
-      if (useLocalFallback) {
-        return localRedisProxy.multi();
-      }
-      try {
-        return devvitRedisProxy.multi();
-      } catch (err: any) {
-        console.warn(`⚠️ [Devvit Web Proxy] redis.multi() failed, falling back to localRedisProxy:`, err);
-        useLocalFallback = true;
-        return localRedisProxy.multi();
-      }
-    };
-  }
-
-  return async function(...args: any[]) {
-    if (useLocalFallback) {
-      return (localRedisProxy[methodName] as any)(...args);
-    }
-    try {
-      return await (original as any)(...args);
-    } catch (err: any) {
-      const errMsg = String(err?.message || err);
-      if (
-        errMsg.includes('undefined undefined') ||
-        errMsg.includes('callErrorFromStatus') ||
-        errMsg.includes('gRPC') ||
-        errMsg.includes('Status') ||
-        errMsg.includes('No context found') ||
-        errMsg.includes('createServer')
-      ) {
-        console.warn(`⚠️ [Devvit Web Proxy] Devvit Redis ${String(methodName)} failed (${errMsg}). Falling back to localRedisProxy.`);
-        useLocalFallback = true;
-        return (localRedisProxy[methodName] as any)(...args);
-      }
-      throw err;
-    }
-  };
-}
-
-for (const key of Object.keys(devvitRedisProxy) as (keyof DevvitRedis)[]) {
-  (devvitRedisProxyWithFallback[key] as any) = wrapRedisMethod(key);
-}
-
-// Dev/test → local proxy (ioredis or in-memory). Production → Devvit-managed Redis,
-// so game state actually persists across stateless serverless invocations.
-export const redis: DevvitRedis = isProd ? devvitRedisProxyWithFallback : localRedisProxy;
+// Dev/test → local proxy (ioredis o in-memory). Producción → Devvit-managed Redis
+// DIRECTAMENTE, sin fallback silencioso (ver decisions/0009 §A).
+//
+// Antes, cualquier fallo del transporte gRPC (p. ej. "undefined undefined: undefined"
+// por metadata vacía) caía en silencio a InMemoryRedis: el juego "funcionaba" pero
+// perdía TODO el estado entre invocaciones serverless y no emitía ningún error,
+// enmascarando la causa real durante un día. Ahora el error propaga y aparece en
+// `devvit logs`, que es exactamente lo que necesitamos para diagnosticar.
+export const redis: DevvitRedis = isProd ? devvitRedisProxy : localRedisProxy;
 
 // Proxy Context implementation
 export const context: DevvitContext = new Proxy({} as DevvitContext, {

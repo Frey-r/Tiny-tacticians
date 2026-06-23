@@ -4,6 +4,7 @@ export const BASE_STAT = 10;
 export const MAX_STAT = 100;
 export const MIN_STAT = 1;
 export const RUN_TURNS = 8;
+export const LOADOUT_SIZE = 3; // consejeros exactos que componen el loadout de una run
 export const MATCHMAKING_POWER_BAND = 15; // standard [P - 15, P + 15]
 
 export function calculatePower(stats: GeneralStats): number {

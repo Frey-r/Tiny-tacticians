@@ -19,6 +19,17 @@ export default defineConfig({
   },
   build: {
     ssr: true,
+    // Los clientes gRPC de Devvit (reddit/redis) cargan sus stubs de plugin con
+    // `require()` DINÁMICO. Por defecto, @rollup/plugin-commonjs intenta reescribir
+    // esos require y los deja malformados → el host responde "Plugin RPC malformed
+    // error … require() statement being incorrectly handled by your bundler" y la
+    // metadata gRPC llega vacía (`Map(0)`), que era el fallo real de creación de post.
+    // `ignoreDynamicRequires` los deja como require() nativos que el runtime de Devvit
+    // resuelve. Compatible con `ssr.noExternal: true` (eso empaqueta los imports
+    // ESTÁTICOS; esto preserva los require DINÁMICOS). Ver decisions/0009 y 0010.
+    commonjsOptions: {
+      ignoreDynamicRequires: true,
+    },
     lib: {
       entry: path.resolve(__dirname, './src/server/index.ts'),
       formats: ['cjs'],

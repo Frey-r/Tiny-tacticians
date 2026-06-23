@@ -62,3 +62,32 @@ export interface UserProfile {
   settlementLevel: number;
   schemaVersion: number;
 }
+
+export interface DailyModifier {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface DailyChallenge {
+  date: string; // canonical UTC YYYY-MM-DD
+  seed: string;
+  enemy: General;
+  modifier: DailyModifier;
+  postId?: string;
+  schemaVersion: number;
+}
+
+/** Per-user status of today's daily challenge, returned alongside the challenge. */
+export interface DailyStatus {
+  completed: boolean;
+  claimed: boolean;
+}
+
+export interface DailyClaimResult {
+  date: string;
+  goldEarned: number;
+  scoreEarned: number;
+  newGoldTotal: number;
+  consejeroGranted: Consejero | null;
+}

@@ -1,23 +1,21 @@
 import { context as devvitContext } from '@devvit/web/server';
 
 /**
- * Diagnóstico TEMPORAL (quitar cuando se resuelva el bug de contexto).
+ * Diagnóstico TEMPORAL (quitar cuando se resuelva el bug de gRPC).
  *
- * Registra qué headers `devvit-*` llegan a un request y qué campos de contexto
- * Devvit se resuelven. Sirve para distinguir la causa de los fallos gRPC
- * ("undefined undefined: undefined" / "No context found"):
+ * Loguea TODOS los headers que llegan al request (solo nombres, no valores, por
+ * seguridad) + los campos de contexto Devvit resueltos. El objetivo es ver, en
+ * el endpoint del menú (que corre servidor-a-servidor y cuyas llamadas gRPC el
+ * host rechaza con "undefined undefined: undefined"), QUÉ headers de auth llegan
+ * realmente — y si falta el header de auth/capabilities que Devvit normalmente
+ * reenvía a los requests de cliente.
  *
- *   • Si un request de cliente (/api/*) muestra headers + contexto completos y
- *     funciona, pero un request interno (/internal/menu, /internal/on-install)
- *     muestra MENOS headers (le falta la auth/metadata) → el problema es que los
- *     endpoints internos no reciben la metadata de auth de Devvit.
- *   • Si AMBOS muestran lo mismo y aun así fallan los gRPC → el problema es
- *     global (transporte/bundle), no específico de los endpoints internos.
+ * La línea `[diag:<label>] ...` sirve además para confirmar que el bundle nuevo
+ * está corriendo: si NO aparece, el playtest está sirviendo código viejo.
  */
 export function logDevvitDiag(label: string, req: { headers?: Record<string, unknown> }): void {
-  const headerKeys = Object.keys(req?.headers ?? {})
-    .filter((h) => h.toLowerCase().startsWith('devvit-'))
-    .sort();
+  const allKeys = Object.keys(req?.headers ?? {}).sort();
+  const devvitKeys = allKeys.filter((h) => h.toLowerCase().startsWith('devvit-'));
 
   const ctx: Record<string, unknown> = {};
   for (const field of ['subredditId', 'subredditName', 'userId', 'appName', 'appVersion'] as const) {
@@ -28,6 +26,7 @@ export function logDevvitDiag(label: string, req: { headers?: Record<string, unk
     }
   }
 
-  console.log(`[diag:${label}] devvit-headers(${headerKeys.length}): [${headerKeys.join(', ')}]`);
+  console.log(`[diag:${label}] ALL headers(${allKeys.length}): [${allKeys.join(', ')}]`);
+  console.log(`[diag:${label}] devvit-* (${devvitKeys.length}): [${devvitKeys.join(', ')}]`);
   console.log(`[diag:${label}] context: ${JSON.stringify(ctx)}`);
 }

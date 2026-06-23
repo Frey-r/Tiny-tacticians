@@ -1,7 +1,10 @@
 import { redis } from '../devvitProxy/index.ts';
 import { keys } from './keys.ts';
-import { DeckSnapshot, ActionLog, General } from '../../shared/types/index.ts';
+import { DeckSnapshot, ActionLog, General, Consejero } from '../../shared/types/index.ts';
 import { simulateRun } from '../../shared/sim/simulateRun.ts';
+import { getUserConsejeros } from './rewards.ts';
+import { checkRateLimit } from './rateLimit.ts';
+import { LOADOUT_SIZE } from '../../shared/sim/balance.ts';
 
 const RUN_TTL_SECONDS = 1800; // 30 minutes
 const GENERAL_TTL_SECONDS = 30 * 24 * 3600; // 30 days
@@ -9,20 +12,45 @@ const MAX_RUNS_PER_HOUR = 10;
 
 export async function startRun(
   userId: string,
-  deckSnapshot: DeckSnapshot
+  requestedDeck: DeckSnapshot
 ): Promise<{ runId: string; seed: string; deckSnapshot: DeckSnapshot }> {
   // 1. Throttling / Rate limiting (10 runs per hour)
-  const hourWindow = Math.floor(Date.now() / 3600000);
-  const rateKey = `rate:run:${userId}`;
-  const currentRuns = await redis.hIncrBy(rateKey, String(hourWindow), 1);
-  
-  if (currentRuns > MAX_RUNS_PER_HOUR) {
-    // Revert increment
-    await redis.hIncrBy(rateKey, String(hourWindow), -1);
-    throw new Error(`RATE_LIMIT_EXCEEDED: Has superado el límite de ${MAX_RUNS_PER_HOUR} runs por hora.`);
+  await checkRateLimit('run', userId, MAX_RUNS_PER_HOUR, 3600_000);
+
+  // 2. Validar propiedad y tamaño del loadout, y RECONSTRUIR el deck autoritativo
+  //    desde Redis. El cliente solo elige IDS; nivel/afinidad los pone el servidor,
+  //    así un cliente no puede inyectar consejeros que no posee ni inflar niveles
+  //    (run-training.spec §Start Run + security.spec §Server-Authoritative State).
+  if (!Array.isArray(requestedDeck)) {
+    throw new Error('INVALID_LOADOUT: El loadout debe ser un arreglo.');
+  }
+  const requestedIds = requestedDeck.map((c) => c?.id);
+  if (requestedIds.length !== LOADOUT_SIZE) {
+    throw new Error(`INVALID_LOADOUT: El loadout debe tener exactamente ${LOADOUT_SIZE} consejeros.`);
+  }
+  if (new Set(requestedIds).size !== requestedIds.length) {
+    throw new Error('INVALID_LOADOUT: No se permiten consejeros repetidos en el loadout.');
   }
 
-  // 2. Generate runId and seed
+  const owned = await getUserConsejeros(userId);
+  const ownedById = new Map(owned.map((c) => [c.id, c]));
+
+  const deckSnapshot: DeckSnapshot = requestedIds.map((id) => {
+    const advisor = ownedById.get(id as string);
+    if (!advisor) {
+      throw new Error(`FORBIDDEN_ADVISOR: No posees el consejero '${id}'.`);
+    }
+    // Copia autoritativa (ignora cualquier nivel/afinidad enviado por el cliente).
+    const authoritative: Consejero = {
+      id: advisor.id,
+      name: advisor.name,
+      affinity: advisor.affinity,
+      level: advisor.level,
+    };
+    return authoritative;
+  });
+
+  // 3. Generate runId and seed
   // Standard UUID replacement for safe serverless usage
   const runId = `run_${Math.random().toString(36).substring(2, 15)}_${Date.now()}`;
   const seed = `seed_${Math.random().toString(36).substring(2, 10)}${Math.random().toString(36).substring(2, 10)}`;

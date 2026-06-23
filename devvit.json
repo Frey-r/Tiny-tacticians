@@ -38,6 +38,14 @@
     "onAppInstall": "/internal/on-install",
     "onAppUpgrade": "/internal/on-install"
   },
+  "scheduler": {
+    "tasks": {
+      "daily-rollover": {
+        "endpoint": "/internal/cron/daily-rollover",
+        "cron": "0 0 * * *"
+      }
+    }
+  },
   "dev": {
     "subreddit": "tiny_tacticians_dev"
   }

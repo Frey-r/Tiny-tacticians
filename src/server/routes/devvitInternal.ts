@@ -6,11 +6,13 @@
    subreddit quede vacío al instalar la app (playtest/upload).
    ============================================================ */
 import { Router } from 'express';
-import { reddit, context as webServerContext } from '@devvit/web/server';
+import { reddit } from '@devvit/web/server';
 import { context, redis } from '../devvitProxy/index.ts';
 import { keys } from '../core/keys.ts';
 import { seedNPCs } from '../core/npc.ts';
 import { logDevvitDiag } from '../core/diag.ts';
+import { getCanonicalDate, getOrCreateDailyChallenge } from '../core/daily.ts';
+import type { DailyChallenge } from '../../shared/types/index.ts';
 
 const router = Router();
 
@@ -22,19 +24,8 @@ const POST_TITLE = 'Tiny Tacticians — ¡Entrena a tu general y conquista la ar
  * devuelve en lugar de crear un duplicado. El primero que se crea se fija
  * (sticky) como entrada del juego.
  */
-async function createGamePost(runAsUser: boolean = false): Promise<{ id: string; url: string; created: boolean }> {
-  let subredditName = context.subredditName;
-  if (!subredditName) {
-    try {
-      subredditName = (await reddit.getCurrentSubreddit()).name;
-    } catch (err: any) {
-      console.error('[createGamePost] no se pudo resolver el subreddit:', err?.message || err);
-    }
-  }
-  if (!subredditName) {
-    throw new Error('No hay subreddit en el contexto para publicar el post.');
-  }
-
+export async function createGamePost(): Promise<{ id: string; url: string; created: boolean }> {
+  // Idempotente: si ya hay un post guardado y sigue vivo, lo reutilizamos en vez de duplicar.
   const storedId = await redis.get(keys.firstPost());
   if (storedId) {
     try {
@@ -45,51 +36,11 @@ async function createGamePost(runAsUser: boolean = false): Promise<{ id: string;
     }
   }
 
-  const baseOptions: any = {
-    subredditName,
-    title: POST_TITLE,
-    entry: 'default',
-    textFallback: {
-      text: 'Tiny Tacticians — ¡Entrena a tu general y conquista la arena!',
-    },
-  };
-
-  // Intentamos runAs: 'USER' si se pide; si el gRPC de UserActions falla
-  // (error "undefined undefined: undefined", issue conocido de Devvit #261),
-  // caemos a runAs: 'APP' que usa el cliente estándar de Reddit API.
-  const attempts: any[] = [];
-  if (runAsUser) {
-    attempts.push({
-      ...baseOptions,
-      runAs: 'USER' as const,
-      userGeneratedContent: {
-        text: 'Tiny Tacticians — ¡Entrena a tu general y conquista la arena!',
-      },
-    });
-  }
-  attempts.push({ ...baseOptions, runAs: 'APP' as const });
-
-  let post;
-  let lastErr: any;
-  for (const opts of attempts) {
-    console.log(`[createGamePost] Intentando crear post en subreddit: "${subredditName}" con runAs: ${opts.runAs}`);
-    try {
-      post = await reddit.submitCustomPost(opts);
-      break;
-    } catch (err: any) {
-      lastErr = err;
-      console.error(`[createGamePost] submitCustomPost (runAs: ${opts.runAs}) falló:`, {
-        message: err?.message,
-        code: err?.code,
-        details: err?.details,
-        stack: err?.stack?.split('\n').slice(0, 3).join('\n'),
-      });
-    }
-  }
-
-  if (!post) {
-    throw lastErr ?? new Error('No se pudo crear el post.');
-  }
+  // Patrón canónico del template oficial (reddit/devvit-template-react): solo `title`.
+  // El subreddit y `runAs: 'APP'` se infieren del contexto, y el entrypoint 'default'
+  // de devvit.json. Sin fallback runAs USER→APP ni textFallback: menos superficie de
+  // fallo y, si el contexto/metadata falla, el error propaga limpio a `devvit logs`.
+  const post = await reddit.submitCustomPost({ title: POST_TITLE });
 
   try {
     await post.sticky(1);
@@ -101,6 +52,55 @@ async function createGamePost(runAsUser: boolean = false): Promise<{ id: string;
   return { id: post.id, url: post.url, created: true };
 }
 
+
+/**
+ * Crea (o reutiliza) el post de Reddit asociado al reto diario de `date`.
+ * Idempotente: guarda el id en `daily:post:<date>` y, si ese post sigue vivo,
+ * lo devuelve en vez de publicar un duplicado.
+ */
+export async function createDailyPost(
+  date: string,
+  challenge: DailyChallenge
+): Promise<{ id: string; url: string; created: boolean }> {
+  const postKey = keys.dailyPost(date);
+  const storedId = await redis.get(postKey);
+  if (storedId) {
+    try {
+      const existing = await reddit.getPostById(storedId as any);
+      return { id: existing.id, url: existing.url, created: false };
+    } catch {
+      // El post guardado ya no existe: se crea uno nuevo.
+    }
+  }
+
+  const post = await reddit.submitCustomPost({
+    title: `Tiny Tacticians — Reto Diario ${date}: ${challenge.modifier.name}`,
+  });
+  await redis.set(postKey, post.id);
+  return { id: post.id, url: post.url, created: true };
+}
+
+// POST /internal/cron/daily-rollover — rollover diario (scheduler de devvit.json).
+// Genera el reto de hoy (idempotente) y publica el post asociado. Tolerante a
+// fallos: un error al publicar no rompe la generación del reto.
+router.post('/cron/daily-rollover', async (req, res) => {
+  logDevvitDiag('cron/daily-rollover', req);
+  const date = getCanonicalDate();
+  try {
+    const challenge = await getOrCreateDailyChallenge(date);
+    try {
+      const post = await createDailyPost(date, challenge);
+      console.log(
+        `[cron/daily-rollover] reto ${date} listo; post ${post.created ? 'CREADO' : 'reutilizado'}: ${post.id}`
+      );
+    } catch (err) {
+      console.error('[cron/daily-rollover] no se pudo publicar el post diario:', err);
+    }
+  } catch (err) {
+    console.error('[cron/daily-rollover] no se pudo generar el reto diario:', err);
+  }
+  res.json({});
+});
 
 // GET /internal/test-post — endpoint de diagnóstico para probar creación de posts
 router.get('/test-post', async (req, res) => {
@@ -157,93 +157,14 @@ router.get('/test-post', async (req, res) => {
   }
 });
 
-async function runRedditDiagnostics(subredditName: string) {
-  console.log('\n=============================================');
-  console.log('🚀 RUNNING REDDIT API DIAGNOSTICS');
-  console.log(`Subreddit: ${subredditName}`);
-  console.log('=============================================');
-
-  // Test 1: getCurrentSubreddit
-  try {
-    const sub = await reddit.getCurrentSubreddit();
-    console.log('✅ getCurrentSubreddit succeeded:', sub.name);
-  } catch (err: any) {
-    console.error('❌ getCurrentSubreddit failed:', err.message || err);
-  }
-
-  // Test 2: submitPost (Self post as APP)
-  try {
-    console.log('Testing: submitPost as APP...');
-    const post = await reddit.submitPost({
-      subredditName,
-      title: 'Diagnostic Self Post APP ' + Date.now(),
-      text: 'This is a test text post from Devvit (runAs: APP)',
-      runAs: 'APP',
-    });
-    console.log('✅ submitPost as APP succeeded. ID:', post.id);
-  } catch (err: any) {
-    console.error('❌ submitPost as APP failed:', err.message || err);
-  }
-
-  // Test 3: submitPost (Self post as USER)
-  try {
-    console.log('Testing: submitPost as USER...');
-    const post = await reddit.submitPost({
-      subredditName,
-      title: 'Diagnostic Self Post USER ' + Date.now(),
-      text: 'This is a test text post from Devvit (runAs: USER)',
-      runAs: 'USER',
-    });
-    console.log('✅ submitPost as USER succeeded. ID:', post.id);
-  } catch (err: any) {
-    console.error('❌ submitPost as USER failed:', err.message || err);
-  }
-
-  // Test 4: submitCustomPost as APP
-  try {
-    console.log('Testing: submitCustomPost as APP...');
-    const post = await reddit.submitCustomPost({
-      subredditName,
-      title: 'Diagnostic Custom Post APP ' + Date.now(),
-      entry: 'default',
-      textFallback: { text: 'Fallback APP' },
-      runAs: 'APP',
-    });
-    console.log('✅ submitCustomPost as APP succeeded. ID:', post.id);
-  } catch (err: any) {
-    console.error('❌ submitCustomPost as APP failed:', err.message || err);
-  }
-
-  // Test 5: submitCustomPost as USER
-  try {
-    console.log('Testing: submitCustomPost as USER...');
-    const post = await reddit.submitCustomPost({
-      subredditName,
-      title: 'Diagnostic Custom Post USER ' + Date.now(),
-      entry: 'default',
-      textFallback: { text: 'Fallback USER' },
-      runAs: 'USER',
-      userGeneratedContent: {
-        text: 'Diagnostic Custom Post USER content',
-      },
-    });
-    console.log('✅ submitCustomPost as USER succeeded. ID:', post.id);
-  } catch (err: any) {
-    console.error('❌ submitCustomPost as USER failed:', err.message || err);
-  }
-
-  console.log('=============================================\n');
-}
-
 // POST /internal/menu/create-post — acción de menú (moderador).
 router.post('/menu/create-post', async (req, res) => {
   try {
     logDevvitDiag('menu/create-post', req);
     // Asegura que haya rivales/leaderboard la primera vez (idempotente).
     await seedNPCs().catch((e) => console.error('seedNPCs (menu) falló:', e));
-    // El menu action tiene contexto de usuario, por lo que corremos con runAsUser: true.
-    // createGamePost intenta runAs: 'USER' y cae a runAs: 'APP' si falla.
-    const post = await createGamePost(true);
+    // Patrón canónico: el post se crea como APP desde el contexto del menú.
+    const post = await createGamePost();
     res.json({
       showToast: post.created
         ? '¡Post de Tiny Tacticians creado!'
@@ -273,8 +194,8 @@ router.post('/on-install', async (req, res) => {
     console.error('[on-install] seedNPCs falló:', err);
   }
   try {
-    // El trigger de instalación corre en segundo plano como app, runAsUser: false
-    const post = await createGamePost(false);
+    // El trigger de instalación corre en segundo plano como app.
+    const post = await createGamePost();
     console.log(
       `[on-install] post ${post.created ? 'CREADO' : 'reutilizado'}: ${post.id} → ${post.url}`
     );

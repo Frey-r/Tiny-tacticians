@@ -120,13 +120,18 @@ export class RunSetupScene extends Phaser.Scene {
     const deckSnapshot = store.advisors.filter((a) => this.selected.includes(a.id));
     const hide = loadingOverlay(this);
     try {
-      const result = await api.post<{ runId: string; seed: string }>('/api/run/start', { deckSnapshot });
+      const result = await api.post<{ runId: string; seed: string; deckSnapshot?: Consejero[] }>(
+        '/api/run/start',
+        { deckSnapshot }
+      );
       hide();
       this.scene.start('RunPlay', {
         runId: result.runId,
         seed: result.seed,
         name: this.generalName,
-        advisors: deckSnapshot,
+        // Usar el deck AUTORITATIVO devuelto por el servidor (nivel/afinidad reales),
+        // no la copia local, para que la simulación local coincida con la del servidor.
+        advisors: result.deckSnapshot ?? deckSnapshot,
       });
     } catch (err: any) {
       hide();
