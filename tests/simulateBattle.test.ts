@@ -60,4 +60,23 @@ describe('simulateBattle (deterministic combat)', () => {
     // (except that we might have generalA and generalB mapped differently in the return values,
     // but the winner is identical and combat behavior is symmetric).
   });
+
+  it('should populate structured FX fields on every round (for the visualizer)', () => {
+    const result = simulateBattle('fx_fields', mockGeneralA, mockGeneralB);
+
+    for (const r of result.rounds) {
+      expect(typeof r.crit).toBe('boolean');
+      expect(typeof r.blocked).toBe('boolean');
+      expect(typeof r.lethal).toBe('boolean');
+      expect(Array.isArray(r.abilityProcs)).toBe(true);
+      // `lethal` debe ser consistente con el HP del defensor.
+      expect(r.lethal).toBe(r.defenderHpAfter <= 0);
+    }
+
+    // General A tiene 'Furia de Combate' (sin RNG) y B 'Baluarte Férreo' (rama else):
+    // ambas deben aparecer en abilityProcs en algún momento.
+    const allProcs = result.rounds.flatMap((r) => r.abilityProcs ?? []);
+    expect(allProcs).toContain('Furia de Combate');
+    expect(allProcs).toContain('Baluarte Férreo');
+  });
 });

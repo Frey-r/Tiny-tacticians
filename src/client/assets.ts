@@ -96,6 +96,8 @@ import cloud2 from './assets/sprites/Terrain/Decorations/Clouds/Clouds_02.png';
 
 // Partículas
 import explosion1 from './assets/sprites/Particle FX/Explosion_01.png';
+import dust1 from './assets/sprites/Particle FX/Dust_01.png';
+import fire1 from './assets/sprites/Particle FX/Fire_01.png';
 
 export const SPRITE = {
   warriorBlue: blueWarriorIdle,
@@ -110,5 +112,100 @@ export const SPRITE = {
   cloud2,
   explosion: explosion1,
 } as const;
+
+/* ============================================================
+   Unidades de combate (Fase 2 — simulador 6v6).
+   Spritesheets animados de las facciones Azul (atacante) y Roja
+   (defensor). Claves con prefijo `cu_` para NO colisionar con los
+   sheets/anims legacy (warriorBlue_idle, etc.). Los frames son
+   cuadrados (frameW == frameH); los conteos se midieron del PNG.
+   ============================================================ */
+export interface AnimSheet {
+  texKey: string; // clave de textura Y de animación en Phaser
+  url: string;
+  frameW: number;
+  frameH: number;
+  frames: number;
+  frameRate: number;
+  repeat: number; // -1 bucle, 0 una vez
+}
+
+// Todos los PNG de unidades (Vite los hashea). Brace-expansion soportada por glob de Vite.
+const unitModules = import.meta.glob<string>(
+  './assets/sprites/Units/{Blue,Red} Units/{Warrior,Archer,Lancer}/*.png',
+  { eager: true, import: 'default' }
+);
+
+const COLOR_FOLDER = { blue: 'Blue Units', red: 'Red Units' } as const;
+type UnitColor = keyof typeof COLOR_FOLDER;
+
+interface ActionMeta { file: string; frameH: number; frames: number; frameRate: number; repeat: number }
+const UNIT_DEFS: Record<'warrior' | 'archer' | 'lancer', { folder: string; actions: Record<string, ActionMeta> }> = {
+  warrior: {
+    folder: 'Warrior',
+    actions: {
+      idle: { file: 'Warrior_Idle.png', frameH: 192, frames: 8, frameRate: 8, repeat: -1 },
+      run: { file: 'Warrior_Run.png', frameH: 192, frames: 6, frameRate: 12, repeat: -1 },
+      attack1: { file: 'Warrior_Attack1.png', frameH: 192, frames: 4, frameRate: 14, repeat: 0 },
+      attack2: { file: 'Warrior_Attack2.png', frameH: 192, frames: 4, frameRate: 14, repeat: 0 },
+      guard: { file: 'Warrior_Guard.png', frameH: 192, frames: 6, frameRate: 10, repeat: 0 },
+    },
+  },
+  archer: {
+    folder: 'Archer',
+    actions: {
+      idle: { file: 'Archer_Idle.png', frameH: 192, frames: 6, frameRate: 8, repeat: -1 },
+      run: { file: 'Archer_Run.png', frameH: 192, frames: 4, frameRate: 12, repeat: -1 },
+      shoot: { file: 'Archer_Shoot.png', frameH: 192, frames: 8, frameRate: 16, repeat: 0 },
+    },
+  },
+  lancer: {
+    folder: 'Lancer',
+    actions: {
+      idle: { file: 'Lancer_Idle.png', frameH: 320, frames: 12, frameRate: 10, repeat: -1 },
+      run: { file: 'Lancer_Run.png', frameH: 320, frames: 6, frameRate: 12, repeat: -1 },
+      attack: { file: 'Lancer_Right_Attack.png', frameH: 320, frames: 3, frameRate: 10, repeat: 0 },
+    },
+  },
+};
+
+function unitUrl(colorFolder: string, unitFolder: string, file: string): string {
+  const key = `./assets/sprites/Units/${colorFolder}/${unitFolder}/${file}`;
+  const url = unitModules[key];
+  if (!url) throw new Error(`Asset de unidad no encontrado: ${key}`);
+  return url;
+}
+
+export const UNIT_SHEETS: AnimSheet[] = [];
+for (const color of Object.keys(COLOR_FOLDER) as UnitColor[]) {
+  const cap = color[0].toUpperCase() + color.slice(1); // Blue / Red
+  const colorFolder = COLOR_FOLDER[color];
+  for (const [unit, def] of Object.entries(UNIT_DEFS)) {
+    for (const [action, m] of Object.entries(def.actions)) {
+      UNIT_SHEETS.push({
+        texKey: `cu_${unit}${cap}_${action}`,
+        url: unitUrl(colorFolder, def.folder, m.file),
+        frameW: m.frameH,
+        frameH: m.frameH,
+        frames: m.frames,
+        frameRate: m.frameRate,
+        repeat: m.repeat,
+      });
+    }
+  }
+}
+
+// FX como anims one-shot (los PNG son spritesheets, no imágenes sueltas).
+export const FX_SHEETS: AnimSheet[] = [
+  { texKey: 'cu_explosion', url: explosion1, frameW: 192, frameH: 192, frames: 8, frameRate: 18, repeat: 0 },
+  { texKey: 'cu_dust', url: dust1, frameW: 64, frameH: 64, frames: 8, frameRate: 16, repeat: 0 },
+  { texKey: 'cu_fire', url: fire1, frameW: 64, frameH: 64, frames: 8, frameRate: 14, repeat: 0 },
+];
+
+// Proyectil de los arqueros (imagen estática 64x64).
+export const ARROW: Record<UnitColor, string> = {
+  blue: unitUrl(COLOR_FOLDER.blue, 'Archer', 'Arrow.png'),
+  red: unitUrl(COLOR_FOLDER.red, 'Archer', 'Arrow.png'),
+};
 
 export { UI };

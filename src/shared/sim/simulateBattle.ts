@@ -72,16 +72,22 @@ export function simulateBattle(seed: string, generalA: General, generalB: Genera
 
     let damage = Math.max(2, baseDamage - mitigation);
     let logMsg = `${activeAttacker.name} ataca a ${activeDefender.name}.`;
+    let crit = false;
+    let blocked = false;
+    const abilityProcs: string[] = [];
 
     // 2. Process Attacker Abilities
     // Carga Devastadora: 20% chance of double damage
     if (activeAttacker.abilities.includes('Carga Devastadora')) {
       if (prng.nextInt(1, 5) === 1) {
         damage *= 2;
+        crit = true;
+        abilityProcs.push('Carga Devastadora');
         logMsg += ` ¡Activa [Carga Devastadora] y causa el doble de daño!`;
       }
     } else if (activeAttacker.abilities.includes('Furia de Combate')) {
       damage += 5;
+      abilityProcs.push('Furia de Combate');
       logMsg += ` ¡Bono por [Furia de Combate] (+5 daño)!`;
     }
 
@@ -89,6 +95,7 @@ export function simulateBattle(seed: string, generalA: General, generalB: Genera
     // (We model this as dealing +8 damage this round)
     if (activeAttacker.abilities.includes('Grito de Mando') && prng.nextInt(1, 100) <= 15) {
       damage += 8;
+      abilityProcs.push('Grito de Mando');
       logMsg += ` ¡El [Grito de Mando] amedrenta al rival (+8 daño)!`;
     }
 
@@ -97,15 +104,19 @@ export function simulateBattle(seed: string, generalA: General, generalB: Genera
     if (activeDefender.abilities.includes('Escudo Inquebrantable')) {
       if (prng.nextInt(1, 5) === 1) {
         damage = Math.max(1, Math.floor(damage * 0.2));
+        blocked = true;
+        abilityProcs.push('Escudo Inquebrantable');
         logMsg += ` ¡${activeDefender.name} activa [Escudo Inquebrantable] y bloquea el 80% del golpe!`;
       }
     } else if (activeDefender.abilities.includes('Baluarte Férreo')) {
       damage = Math.max(1, damage - 4);
+      abilityProcs.push('Baluarte Férreo');
       logMsg += ` ¡${activeDefender.name} absorbe daño con [Baluarte Férreo] (-4 daño)!`;
     }
 
     damage = Math.floor(damage);
     activeDefenderHp = Math.max(0, activeDefenderHp - damage);
+    const lethal = activeDefenderHp <= 0;
 
     logMsg += ` Daño infligido: ${damage}. HP de ${activeDefender.name} restante: ${activeDefenderHp}/${activeDefenderMaxHp}.`;
 
@@ -119,6 +130,10 @@ export function simulateBattle(seed: string, generalA: General, generalB: Genera
       attackerHpAfter: activeAttackerHp,
       defenderHpAfter: activeDefenderHp,
       log: logMsg,
+      crit,
+      blocked,
+      abilityProcs,
+      lethal,
     });
 
     if (activeDefenderHp <= 0) {

@@ -5,7 +5,7 @@
    ============================================================ */
 import Phaser from 'phaser';
 import { COLORS, hex, GAME_W, GAME_H, CONTENT_W, TEXT_RES } from '../ui/theme.ts';
-import { ICON, SPRITE, AVATARS, PANEL } from '../assets.ts';
+import { ICON, SPRITE, AVATARS, PANEL, UNIT_SHEETS, FX_SHEETS, ARROW } from '../assets.ts';
 import splashUrl from '../assets/bannerfall_splash.png';
 
 // Spritesheets animados (frames horizontales). Tamaños reales del pack:
@@ -46,6 +46,12 @@ export class BootScene extends Phaser.Scene {
         frameHeight: sheet.frameHeight,
       });
     }
+    // Unidades de combate + FX (Fase 2): spritesheets animados con clave `cu_`.
+    for (const s of [...UNIT_SHEETS, ...FX_SHEETS]) {
+      this.load.spritesheet(s.texKey, s.url, { frameWidth: s.frameW, frameHeight: s.frameH });
+    }
+    this.load.image('cu_arrow_blue', ARROW.blue);
+    this.load.image('cu_arrow_red', ARROW.red);
     for (const [key, url] of Object.entries(IMAGES)) {
       this.load.image(key, url);
     }
@@ -64,6 +70,15 @@ export class BootScene extends Phaser.Scene {
         frames: this.anims.generateFrameNumbers(key, { start: 0, end: sheet.frames - 1 }),
         frameRate: sheet.frames === 12 ? 10 : 8,
         repeat: -1,
+      });
+    }
+    // Anims de las unidades de combate y FX (clave de anim == clave de textura).
+    for (const s of [...UNIT_SHEETS, ...FX_SHEETS]) {
+      this.anims.create({
+        key: s.texKey,
+        frames: this.anims.generateFrameNumbers(s.texKey, { start: 0, end: s.frames - 1 }),
+        frameRate: s.frameRate,
+        repeat: s.repeat,
       });
     }
     this.scene.start('Home');

@@ -79,6 +79,12 @@ export interface BattleRound {
   attackerHpAfter: number;
   defenderHpAfter: number;
   log: string;
+  /* Señales estructuradas para los FX del visualizador (opcionales: los
+     replays guardados antes de Fase 2 simplemente no las traen). */
+  crit?: boolean; // daño doblado (Carga Devastadora)
+  blocked?: boolean; // el defensor absorbió el grueso (Escudo Inquebrantable)
+  abilityProcs?: string[]; // nombres de habilidades que se activaron esta ronda
+  lethal?: boolean; // este golpe dejó al defensor en 0 HP
 }
 
 export interface BattleResult {
