@@ -87,6 +87,65 @@ export function toast(scene: Scene, message: string, color: number = COLORS.crea
   });
 }
 
+/** Número/etiqueta que brota de un punto, sube y se desvanece (pop de ganancia). */
+export function floatingGain(
+  scene: Scene,
+  x: number,
+  y: number,
+  text: string,
+  color: number = COLORS.lime,
+  size = 22
+): void {
+  const t = titleText(scene, x, y, text, size, color).setDepth(600);
+  scene.tweens.add({
+    targets: t,
+    y: y - 80,
+    alpha: 0,
+    duration: 1100,
+    ease: 'Quad.easeOut',
+    onComplete: () => t.destroy(),
+  });
+}
+
+/** Banner central que aparece con un golpe (crítico / fallo / evento). Opcional shake de cámara. */
+export function outcomeBanner(scene: Scene, text: string, color: number, shake = false): void {
+  const w = scene.scale.width;
+  const h = scene.scale.height;
+  const y = h * 0.42;
+  const txt = titleText(scene, w / 2, y, text, 30, color).setDepth(620).setScale(0.4);
+  const bg = scene.add
+    .rectangle(w / 2, y, txt.width + 80, 72, COLORS.panelDark, 0.92)
+    .setStrokeStyle(4, color)
+    .setDepth(619)
+    .setScale(0.4);
+  scene.tweens.add({ targets: [txt, bg], scaleX: 1, scaleY: 1, duration: 220, ease: 'Back.easeOut' });
+  scene.tweens.add({
+    targets: [txt, bg],
+    alpha: 0,
+    delay: 820,
+    duration: 420,
+    onComplete: () => {
+      txt.destroy();
+      bg.destroy();
+    },
+  });
+  if (shake) scene.cameras.main.shake(220, 0.008);
+}
+
+/** Anima un Text numérico de `from` a `to` (count-up), evitando el cambio silencioso. */
+export function countUp(scene: Scene, textObj: Phaser.GameObjects.Text, from: number, to: number): void {
+  const o = { v: from };
+  textObj.setText(String(Math.round(from)));
+  scene.tweens.add({
+    targets: o,
+    v: to,
+    duration: 500,
+    ease: 'Cubic.easeOut',
+    onUpdate: () => textObj.setText(String(Math.round(o.v))),
+    onComplete: () => textObj.setText(String(Math.round(to))),
+  });
+}
+
 export function titleText(
   scene: Scene,
   x: number,
