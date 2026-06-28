@@ -1,5 +1,35 @@
 import { General, BattleResult, BattleRound } from '../types/index.ts';
 import { PRNG } from './prng.ts';
+import { rollDice } from './dice.ts';
+import { buildAbilityRoll } from './balance.ts';
+import { CONSEJERO_ABILITY_LIST, CONSEJERO_PROC_CHANCE, AbilityEffect } from './consejeroAbilities.ts';
+
+/** ¿Proca una habilidad con probabilidad `p`? Una tirada de dado (banda CRÍTICO). */
+function procs(prng: PRNG, p: number): boolean {
+  return rollDice(prng, buildAbilityRoll(p)).band === 'CRITICO';
+}
+
+function applyAttackerEffect(damage: number, effect: AbilityEffect, mitigation: number): number {
+  switch (effect.type) {
+    case 'bonusDamage':
+      return damage + effect.amount;
+    case 'ignoreMitigation':
+      return damage + mitigation; // recupera la mitigación que el defensor había restado
+    default:
+      return damage;
+  }
+}
+
+function applyDefenderEffect(damage: number, effect: AbilityEffect): number {
+  switch (effect.type) {
+    case 'reduceIncoming':
+      return Math.max(1, damage - effect.amount);
+    case 'blockPct':
+      return Math.max(1, Math.floor(damage * (1 - effect.pct)));
+    default:
+      return damage;
+  }
+}
 
 export function simulateBattle(seed: string, generalA: General, generalB: General): BattleResult {
   const prng = new PRNG(seed);
@@ -77,9 +107,9 @@ export function simulateBattle(seed: string, generalA: General, generalB: Genera
     const abilityProcs: string[] = [];
 
     // 2. Process Attacker Abilities
-    // Carga Devastadora: 20% chance of double damage
+    // Carga Devastadora: ~20% (un dado) de daño doble
     if (activeAttacker.abilities.includes('Carga Devastadora')) {
-      if (prng.nextInt(1, 5) === 1) {
+      if (procs(prng, 0.2)) {
         damage *= 2;
         crit = true;
         abilityProcs.push('Carga Devastadora');
@@ -91,18 +121,27 @@ export function simulateBattle(seed: string, generalA: General, generalB: Genera
       logMsg += ` ¡Bono por [Furia de Combate] (+5 daño)!`;
     }
 
-    // Grito de Mando: 15% chance to confuse defender, reducing their next round defense
-    // (We model this as dealing +8 damage this round)
-    if (activeAttacker.abilities.includes('Grito de Mando') && prng.nextInt(1, 100) <= 15) {
+    // Grito de Mando: ~15% (un dado) de +8 daño
+    if (activeAttacker.abilities.includes('Grito de Mando') && procs(prng, 0.15)) {
       damage += 8;
       abilityProcs.push('Grito de Mando');
       logMsg += ` ¡El [Grito de Mando] amedrenta al rival (+8 daño)!`;
     }
 
+    // Habilidades de consejero del ATACANTE (desbloqueadas por afinidad; proc 1/6 vía dado).
+    for (const ab of CONSEJERO_ABILITY_LIST) {
+      if (ab.kind !== 'attacker' || !activeAttacker.abilities.includes(ab.ability)) continue;
+      if (procs(prng, CONSEJERO_PROC_CHANCE)) {
+        damage = applyAttackerEffect(damage, ab.effect, mitigation);
+        abilityProcs.push(ab.ability);
+        logMsg += ` ¡${activeAttacker.name} activa [${ab.ability}]!`;
+      }
+    }
+
     // 3. Process Defender Abilities
-    // Escudo Inquebrantable: 20% chance of blocking 80% of damage
+    // Escudo Inquebrantable: ~20% (un dado) de bloquear el 80% del daño
     if (activeDefender.abilities.includes('Escudo Inquebrantable')) {
-      if (prng.nextInt(1, 5) === 1) {
+      if (procs(prng, 0.2)) {
         damage = Math.max(1, Math.floor(damage * 0.2));
         blocked = true;
         abilityProcs.push('Escudo Inquebrantable');
@@ -112,6 +151,17 @@ export function simulateBattle(seed: string, generalA: General, generalB: Genera
       damage = Math.max(1, damage - 4);
       abilityProcs.push('Baluarte Férreo');
       logMsg += ` ¡${activeDefender.name} absorbe daño con [Baluarte Férreo] (-4 daño)!`;
+    }
+
+    // Habilidades de consejero del DEFENSOR (desbloqueadas por afinidad; proc 1/6 vía dado).
+    for (const ab of CONSEJERO_ABILITY_LIST) {
+      if (ab.kind !== 'defender' || !activeDefender.abilities.includes(ab.ability)) continue;
+      if (procs(prng, CONSEJERO_PROC_CHANCE)) {
+        damage = applyDefenderEffect(damage, ab.effect);
+        blocked = true;
+        abilityProcs.push(ab.ability);
+        logMsg += ` ¡${activeDefender.name} resiste con [${ab.ability}]!`;
+      }
     }
 
     damage = Math.floor(damage);

@@ -14,7 +14,7 @@ function buildLog(seed: string, choice: Affinity = 'OFE'): ActionLog {
   const evt = eventTurns(seed);
   const log: ActionLog = [];
   for (let i = 0; i < RUN_TURNS; i++) {
-    log.push(evt.has(i) ? { kind: 'event', branch: 0 } : { kind: 'train', choice });
+    log.push(evt.has(i) ? { kind: 'event', branch: 0 } : { kind: 'train', choice, consejeroIds: [] });
   }
   return log;
 }

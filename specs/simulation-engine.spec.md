@@ -27,6 +27,12 @@ o ambiental.
 - THEN los resultados difieren
 - AND la prueba de determinismo falla y bloquea el merge
 
+#### Scenario: Tiradas de dados deterministas (happy)
+- GIVEN un `DiceRoll` resuelto con el PRNG sembrado de la run
+- WHEN se re-simula la run con la misma semilla, deck y actionLog
+- THEN cada turno produce las mismas caras de dado y la misma banda
+- AND el contrato de consumo (una extracción por dado) se mantiene (ver `dice-resolution`)
+
 ### Requirement: Deterministic Run Simulation
 El motor SHALL exponer `simulateRun(seed, deckSnapshot, actionLog) -> General` como función pura.
 El resultado SHALL ser idéntico independientemente de si se ejecuta en cliente o servidor.

@@ -69,6 +69,7 @@ import bigBlueBtn from './assets/sprites/UI Elements/UI Elements/Buttons/BigBlue
 import regularPaper from './assets/sprites/UI Elements/UI Elements/Papers/RegularPaper.png';
 import specialPaper from './assets/sprites/UI Elements/UI Elements/Papers/SpecialPaper.png';
 import banner from './assets/sprites/UI Elements/UI Elements/Banners/Banner.png';
+import dicesSprite from './assets/sprites/UI Elements/UI Dices/dices_sprite.png';
 
 export const PANEL = {
   buttonRed: bigRedBtn,
@@ -76,6 +77,18 @@ export const PANEL = {
   paper: regularPaper,
   paperSpecial: specialPaper,
   banner,
+} as const;
+
+/* ---- Dados (spritesheet 168x86 = 6 col x 3 filas, frame 28x28).
+   Fila superior (frames 0..5) = caras de pips 1..6 (verificado por
+   conteo de pips). Las otras filas (símbolos/geométricos) no se usan. */
+export const DICE = {
+  url: dicesSprite,
+  key: 'ui_dice',
+  frameW: 28,
+  frameH: 28,
+  /** Cara (1..6) -> índice de frame de la fila de pips. */
+  pipFrame: (v: number): number => Math.min(6, Math.max(1, Math.round(v))) - 1,
 } as const;
 
 // Unidades

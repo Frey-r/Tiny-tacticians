@@ -43,6 +43,18 @@ comentario de "war report".
 - THEN devuelve ganador, log de rondas y referencia de replay
 - AND reproducir con `Sb` rinde exactamente el mismo resultado
 
+### Requirement: Dice-Resolved Ability Procs
+Las habilidades con probabilidad SHALL procar mediante el motor `dice-resolution` con el
+PRNG sembrado de la batalla. Las habilidades de combate desbloqueadas por afinidad de
+consejero (ver `run-training`) SHALL participar en la batalla como cualquier otra habilidad
+del general.
+
+#### Scenario: Habilidad desbloqueada por consejero proca en combate (happy)
+- GIVEN un general cuyas habilidades incluyen una desbloqueada por afinidad de consejero
+- WHEN se resuelve una batalla
+- THEN esa habilidad puede procar vía dado y aparece en `abilityProcs`
+- AND la batalla sigue siendo reproducible con la misma semilla
+
 ### Requirement: Atomic Idempotent Rewards
 El acreditar recursos al ganador SHALL realizarse con operaciones atómicas y SHALL ser
 idempotente respecto del identificador de batalla, de modo que reintentos no dupliquen

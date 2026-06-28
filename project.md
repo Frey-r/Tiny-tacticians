@@ -23,11 +23,17 @@ El cliente solo envía intenciones acotadas (un `actionLog`). Ver `decisions/000
 | Capability          | Responsabilidad                                                        |
 |---------------------|------------------------------------------------------------------------|
 | `simulation-engine` | PRNG sembrado + `simulateRun` / `simulateBattle` deterministas + replay |
+| `dice-resolution`   | Motor de dados sembrados (restringibles, umbrales) para runs/eventos/procs |
 | `run-training`      | Ciclo de vida de la run y acuñación del general                        |
 | `combat-pvp`        | Matchmaking por poder, batalla determinista, recompensas               |
 | `daily-events`      | Reto diario, reclamo de recompensas, adquisición de consejeros         |
 | `meta-progression`  | Ledger de recursos, niveles de consejero, asentamiento, versionado     |
 | `security`          | Requisitos no funcionales transversales de integridad y abuso          |
+
+> **Glosario:** "afinidad de consejero" (vínculo / `bond` en código) es un puntaje que
+> se acumula por-run al usar un consejero en entrenamientos y desbloquea su habilidad de
+> combate. Es distinto del **tipo de afinidad** (`Affinity` = OFE/DEF/MAN). Ver
+> `decisions/0011` y `specs/dice-resolution`.
 
 ## Decisiones de arquitectura (decisions/)
 

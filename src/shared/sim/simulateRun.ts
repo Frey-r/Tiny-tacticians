@@ -1,7 +1,7 @@
 import { DeckSnapshot, ActionLog, General } from '../types/index.ts';
 import { PRNG } from './prng.ts';
 import { stepRun } from './stepRun.ts';
-import { calculatePower, calculateTier, deriveAbilities } from './balance.ts';
+import { calculatePower, calculateTier, deriveAbilities, SIM_VERSION } from './balance.ts';
 
 /**
  * Acuña un General re-simulando la run server-side. Toda la lógica de turnos
@@ -17,7 +17,7 @@ export function simulateRun(
   actionLog: ActionLog,
   name?: string
 ): General {
-  const { stats } = stepRun(seed, deckSnapshot, actionLog); // valida internamente
+  const { stats, unlockedAbilities } = stepRun(seed, deckSnapshot, actionLog); // valida internamente
 
   const idp = new PRNG(`${seed}:id`);
   const generalId = `gen_${idp.nextHex(8)}_${idp.nextInt(100000, 999999)}`;
@@ -25,7 +25,8 @@ export function simulateRun(
 
   const finalPower = calculatePower(stats);
   const finalTier = calculateTier(finalPower);
-  const finalAbilities = deriveAbilities(stats);
+  // Unión: habilidades por umbral de stat + habilidades desbloqueadas por afinidad de consejero.
+  const finalAbilities = Array.from(new Set([...deriveAbilities(stats), ...unlockedAbilities]));
 
   return {
     id: generalId,
@@ -36,7 +37,7 @@ export function simulateRun(
     tier: finalTier,
     abilities: finalAbilities,
     seed,
-    schemaVersion: 1,
+    schemaVersion: SIM_VERSION,
     createdAt: Date.now(), // Filled on the server, but default provided
   };
 }

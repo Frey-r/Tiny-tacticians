@@ -84,3 +84,49 @@ inundar el pool de fantasmas.
 - WHEN intenta iniciar otra run
 - THEN el servidor rechaza la petición indicando el límite
 - AND no consume cuota adicional
+
+### Requirement: Dice-Resolved Decisions
+Cada entrenamiento y cada rama de evento con probabilidad SHALL resolverse mediante el
+motor `dice-resolution` usando el PRNG sembrado de la run. El resultado (FALLO / NORMAL
+/ CRÍTICO) SHALL determinar la ganancia: FALLO = 0, NORMAL = ganancia base, CRÍTICO =
+ganancia base por el multiplicador de crítico. El descanso NO tira dado (recuperación
+determinista).
+
+#### Scenario: Entrenamiento resuelto por dados (happy)
+- GIVEN un turno de entrenamiento de afinidad `OFE`
+- WHEN el jugador lo confirma
+- THEN se tira el dado armado desde los modificadores y la energía
+- AND la banda resultante fija la ganancia aplicada a la stat
+
+### Requirement: Consejero Assignment Per Training
+El jugador SHALL poder asignar un subconjunto del deck a cada turno de entrenamiento.
+La acción `train` SHALL incluir `consejeroIds`; el servidor SHALL rechazar cualquier id
+que no pertenezca al `deckSnapshot`. Un conjunto vacío SHALL ser válido (entrenamiento
+sin asistencia). Cada consejero asignado SHALL aportar modificadores a la tirada según
+su afinidad y nivel; varios consejeros agregan sus efectos.
+
+#### Scenario: Asignar varios consejeros a un entrenamiento (happy)
+- GIVEN un deck de 3 consejeros y un turno de entrenamiento
+- WHEN el jugador asigna 2 de ellos y confirma
+- THEN ambos reforman la tirada y la acción registra sus `consejeroIds`
+
+#### Scenario: Consejero ajeno al deck (sad)
+- GIVEN una acción `train` cuyos `consejeroIds` referencian un id fuera del `deckSnapshot`
+- WHEN el servidor valida el `actionLog`
+- THEN rechaza el envío sin acuñar general
+
+### Requirement: Bond Accrual And Ability Unlock
+La participación de un consejero en entrenamientos SHALL acumular su `bond` (afinidad)
+durante la run. El `bond` SHALL ser por-run y derivado de `(seed, deck, actionLog)`, sin
+persistirse. Al cruzar el umbral de `bond`, la habilidad de combate del consejero SHALL
+unirse a las habilidades del general acuñado (junto con las habilidades por umbral de stat).
+
+#### Scenario: Desbloqueo de habilidad por afinidad (happy)
+- GIVEN un consejero que participa en suficientes entrenamientos para cruzar el umbral de bond
+- WHEN se acuña el general al terminar la run
+- THEN la habilidad de ese consejero aparece en las habilidades del general
+
+#### Scenario: Bond por debajo del umbral no desbloquea (sad)
+- GIVEN un consejero que participa una sola vez
+- WHEN se acuña el general
+- THEN su habilidad NO se añade al general

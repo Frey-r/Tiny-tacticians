@@ -1,3 +1,5 @@
+import type { DiceRoll, OutcomeBand } from '../sim/dice.ts';
+
 export type Affinity = 'OFE' | 'DEF' | 'MAN';
 
 export interface Consejero {
@@ -14,11 +16,12 @@ export type DeckSnapshot = Consejero[];
  * - `train`: entrena una afinidad (el asesor lo deriva el servidor).
  * - `rest`:  recupera energía a cambio del turno.
  * - `event`: resuelve un turno de evento eligiendo una de las 2 ramas.
- * El asesor ya no se envía (`consejeroId` eliminado): el deck es autoritativo
- * en el servidor y la mejor afinidad se deriva con `bestAdvisorFor`.
+ * El `train` lleva `consejeroIds`: los consejeros que el jugador asigna a ESE
+ * entrenamiento (subconjunto del deck, posiblemente vacío). Viajan en el actionLog
+ * porque afectan la tirada; el servidor los valida contra el deck autoritativo.
  */
 export type RunAction =
-  | { kind: 'train'; choice: Affinity }
+  | { kind: 'train'; choice: Affinity; consejeroIds: string[] }
   | { kind: 'rest' }
   | { kind: 'event'; branch: 0 | 1 };
 
@@ -47,6 +50,10 @@ export interface TurnResult {
   energyBefore: number;
   energyAfter: number;
   event?: { id: string; name: string; branch: number; label: string; outcomeText: string };
+  /** Tirada de dados de este turno (entrenamiento o rama de evento con probabilidad). */
+  dice?: { faces: number[]; keptFace: number; band: OutcomeBand; roll: DiceRoll };
+  /** Bond ("afinidad") ganado por cada consejero ESTE turno (solo en train). */
+  bondDeltas?: Record<string, number>;
 }
 
 /** Estado completo re-derivado de una run desde seed + deck + actionLog. */
@@ -54,6 +61,10 @@ export interface RunSimResult {
   stats: GeneralStats;
   energy: number;
   turns: TurnResult[];
+  /** Bond ("afinidad") acumulado por consejero en esta run (por-run, no se persiste). */
+  bond: Record<string, number>;
+  /** Habilidades de combate desbloqueadas por bond, para acuñar el general. */
+  unlockedAbilities: string[];
 }
 
 export interface General {

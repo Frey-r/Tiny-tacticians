@@ -5,7 +5,7 @@
    ============================================================ */
 import Phaser from 'phaser';
 import { COLORS, hex, GAME_W, GAME_H, CONTENT_W, TEXT_RES } from '../ui/theme.ts';
-import { ICON, SPRITE, AVATARS, PANEL, UNIT_SHEETS, FX_SHEETS, ARROW } from '../assets.ts';
+import { ICON, SPRITE, AVATARS, PANEL, UNIT_SHEETS, FX_SHEETS, ARROW, DICE } from '../assets.ts';
 import splashUrl from '../assets/bannerfall_splash.png';
 
 // Spritesheets animados (frames horizontales). Tamaños reales del pack:
@@ -52,6 +52,8 @@ export class BootScene extends Phaser.Scene {
     }
     this.load.image('cu_arrow_blue', ARROW.blue);
     this.load.image('cu_arrow_red', ARROW.red);
+    // Dados (sin animación: las caras se ciclan a mano para respetar el rango permitido).
+    this.load.spritesheet(DICE.key, DICE.url, { frameWidth: DICE.frameW, frameHeight: DICE.frameH });
     for (const [key, url] of Object.entries(IMAGES)) {
       this.load.image(key, url);
     }

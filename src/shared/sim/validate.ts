@@ -24,6 +24,7 @@ export function validateActionLog(
   }
 
   const validAffinities = new Set(['OFE', 'DEF', 'MAN']);
+  const deckIds = new Set(deckSnapshot.map((c) => c.id));
   const evtSet = eventTurns(seed);
 
   for (let i = 0; i < actionLog.length; i++) {
@@ -42,6 +43,23 @@ export function validateActionLog(
     if (action.kind === 'train') {
       if (!validAffinities.has(action.choice)) {
         return { isValid: false, error: `La opción '${action.choice}' en el índice ${i} es inválida.` };
+      }
+      // Consejeros asignados a ESE entrenamiento: arreglo, sin duplicados, todos en el deck.
+      if (!Array.isArray(action.consejeroIds)) {
+        return { isValid: false, error: `La acción en el índice ${i} debe incluir consejeroIds (arreglo).` };
+      }
+      if (action.consejeroIds.length > deckSnapshot.length) {
+        return { isValid: false, error: `Demasiados consejeros en el índice ${i}.` };
+      }
+      const seen = new Set<string>();
+      for (const id of action.consejeroIds) {
+        if (typeof id !== 'string' || !deckIds.has(id)) {
+          return { isValid: false, error: `El consejero '${id}' (índice ${i}) no está en el deck.` };
+        }
+        if (seen.has(id)) {
+          return { isValid: false, error: `Consejero repetido '${id}' en el índice ${i}.` };
+        }
+        seen.add(id);
       }
     } else if (action.kind !== 'rest') {
       return { isValid: false, error: `La acción en el índice ${i} debe ser 'train' o 'rest'.` };

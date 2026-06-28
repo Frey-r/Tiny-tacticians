@@ -1,5 +1,17 @@
 import { GeneralStats, Consejero, Affinity } from '../types/index.ts';
 import { PRNG } from './prng.ts';
+import {
+  DiceRoll,
+  OutcomeBand,
+  baseRoll,
+  restrictRange,
+  shiftThresholds,
+  addDice,
+} from './dice.ts';
+import { CONSEJERO_ABILITIES } from './consejeroAbilities.ts';
+
+/** Versión de simulación. Bump rompe actionLogs/replays previos (ver decisions/0011). */
+export const SIM_VERSION = 2;
 
 export const BASE_STAT = 10;
 export const MAX_STAT = 100;
@@ -18,6 +30,22 @@ export const REST_GAIN = 45; // energía que recupera un descanso (consume el tu
 export const SAFE_ENERGY = 55;
 export const CRIT_MULT = 1.8; // multiplicador de ganancia en crítico
 export const EVENT_COUNT = 3; // turnos de evento por run
+
+/* ---- Dados: umbrales base del d6 (tunables) ---------------------- */
+// Por defecto: cara 1 = FALLO, caras 2..5 = NORMAL, cara 6 = CRÍTICO.
+export const BASE_FAIL_MAX = 1;
+export const BASE_CRIT_MIN = 6;
+
+/* ---- Afinidad / vínculo de consejero (bond), por-run ------------- */
+export const BOND_PER_TRAIN = 1; // por cada consejero que participa
+export const BOND_AFFINITY_BONUS = 2; // extra si su afinidad coincide con la stat
+export const BOND_THRESHOLD = 6; // cruzarlo desbloquea la habilidad de combate
+export const CONSEJERO_PROC_FACES = 1 / 6; // probabilidad de proc en combate
+
+/** id de consejero -> nombre de su habilidad desbloqueable (derivado del catálogo). */
+export const CONSEJERO_ABILITY: Record<string, string> = Object.fromEntries(
+  Object.entries(CONSEJERO_ABILITIES).map(([id, a]) => [id, a.ability])
+);
 
 export function calculatePower(stats: GeneralStats): number {
   return Math.floor(stats.ofe * 1.0 + stats.def * 1.0 + stats.man * 1.2);
@@ -55,6 +83,91 @@ export function critChance(advisor: Consejero, choice: Affinity): number {
   return Math.max(0.05, Math.min(0.45, raw));
 }
 
+/* ============================================================
+   Resolución por DADOS (reemplaza el modelo continuo en stepRun).
+   Ver dice.ts y decisions/0011. Los modificadores reforman el dado.
+   ============================================================ */
+
+/** Mejor consejero ASIGNADO para alimentar la ganancia base; sintético si no hay ninguno. */
+export function participantsBestFor(participants: Consejero[], choice: Affinity): Consejero {
+  const matches = participants.filter((a) => a.affinity === choice);
+  const candidates = matches.length ? matches : participants;
+  if (candidates.length === 0) {
+    // Entrenamiento sin asistencia: asesor sintético nivel 0 SIN afinidad (base mínima = 5).
+    return { id: '', name: '(sin asesor)', affinity: choice === 'OFE' ? 'DEF' : 'OFE', level: 0 };
+  }
+  return candidates.reduce((best, a) => (a.level > best.level ? a : best), candidates[0]);
+}
+
+export interface ConsejeroDieMod {
+  raiseFloor: number; // sube el piso del rango del dado (descarta caras bajas)
+  critDown: number; // baja critMin (hace el CRÍTICO más probable)
+  extraDie: boolean; // concede un dado de ventaja (keep-best)
+}
+
+/** Contribución de UN consejero a la tirada de entrenamiento. Off-afinidad no reforma. */
+export function consejeroDieMod(c: Consejero, choice: Affinity): ConsejeroDieMod {
+  if (c.affinity === choice) {
+    return {
+      raiseFloor: Math.max(0, Math.min(4, 1 + Math.floor(c.level / 3))),
+      critDown: c.level >= 6 ? 2 : c.level >= 3 ? 1 : 0,
+      extraDie: c.level >= 8,
+    };
+  }
+  return { raiseFloor: 0, critDown: 0, extraDie: false };
+}
+
+/** Energía baja sube failMax (más caras pasan a FALLO). Entero 0..2. */
+export function energyFailShift(energy: number): number {
+  if (energy >= SAFE_ENERGY) return 0;
+  const t = (SAFE_ENERGY - Math.max(0, energy)) / SAFE_ENERGY; // 0..1
+  return Math.max(0, Math.min(2, Math.round(t * 2.5)));
+}
+
+/** Arma la tirada de un entrenamiento desde los consejeros asignados + energía. */
+export function buildTrainRoll(participants: Consejero[], choice: Affinity, energy: number): DiceRoll {
+  let totalFloor = 0;
+  let totalCritDown = 0;
+  let extra = 0;
+  for (const c of participants) {
+    const m = consejeroDieMod(c, choice);
+    totalFloor += m.raiseFloor;
+    totalCritDown += m.critDown;
+    if (m.extraDie) extra += 1;
+  }
+  totalFloor = Math.min(4, totalFloor); // nunca colapsa el dado por debajo de 2 caras
+
+  let roll = baseRoll({ failMax: BASE_FAIL_MAX, critMin: BASE_CRIT_MIN });
+  if (totalFloor > 0) roll = restrictRange(roll, 1 + totalFloor, 6);
+  roll = shiftThresholds(roll, energyFailShift(energy), -totalCritDown);
+  if (extra > 0) roll = addDice(roll, extra, 'best');
+  return roll;
+}
+
+/** Tirada de una rama de evento con probabilidad: éxito = banda CRÍTICO. */
+export function buildEventRoll(successProb: number): DiceRoll {
+  const critFaces = Math.max(1, Math.min(6, Math.round(successProb * 6)));
+  return baseRoll({ failMax: 0, critMin: 7 - critFaces });
+}
+
+/** Tirada de un proc de habilidad de combate: proc = banda CRÍTICO. */
+export function buildAbilityRoll(procChance: number): DiceRoll {
+  const critFaces = Math.max(1, Math.min(6, Math.round(procChance * 6)));
+  return baseRoll({ failMax: 0, critMin: 7 - critFaces });
+}
+
+/** Ganancia de un entrenamiento según la banda resultante. */
+export function gainForBand(band: OutcomeBand, base: number): number {
+  if (band === 'FALLO') return 0;
+  if (band === 'CRITICO') return Math.round(base * CRIT_MULT);
+  return base;
+}
+
+/** Bond ("afinidad") que gana un consejero por participar en un entrenamiento. */
+export function bondForParticipation(c: Consejero, choice: Affinity): number {
+  return BOND_PER_TRAIN + (c.affinity === choice ? BOND_AFFINITY_BONUS : 0);
+}
+
 export interface AbilityThreshold {
   name: string;
   stat: keyof GeneralStats;
@@ -87,8 +200,10 @@ export function deriveAbilities(stats: GeneralStats): string[] {
    ============================================================ */
 export interface EventBranch {
   label: string;
-  /** Muta `stats` y devuelve el texto del resultado. Puede usar el PRNG de la run. */
-  apply: (stats: GeneralStats, prng: PRNG) => string;
+  /** Probabilidad de éxito de la apuesta; 0 = rama segura/determinista (no tira dado). */
+  successProb: number;
+  /** Aplica el resultado dado `success`. Puede usar el PRNG para sub-elecciones (p. ej. qué stat). */
+  apply: (stats: GeneralStats, success: boolean, prng: PRNG) => string;
 }
 
 export interface BranchingEvent {
@@ -106,8 +221,9 @@ export const BRANCHING_EVENTS: BranchingEvent[] = [
     branches: [
       {
         label: 'Entrenar igual (50%)',
-        apply: (s, p) => {
-          if (p.nextFloat() < 0.5) {
+        successProb: 0.5,
+        apply: (s, success) => {
+          if (success) {
             s.man += 8;
             return '¡Los reclutas se crecen ante la adversidad! +8 Mando.';
           }
@@ -119,6 +235,7 @@ export const BRANCHING_EVENTS: BranchingEvent[] = [
       },
       {
         label: 'Refugiarse (seguro)',
+        successProb: 0,
         apply: (s) => {
           s.def += 2;
           return 'Reforzáis las tiendas y empalizadas. +2 Defensiva.';
@@ -133,8 +250,9 @@ export const BRANCHING_EVENTS: BranchingEvent[] = [
     branches: [
       {
         label: 'Comprar la reliquia (50%)',
-        apply: (s, p) => {
-          if (p.nextFloat() < 0.5) {
+        successProb: 0.5,
+        apply: (s, success, p) => {
+          if (success) {
             const k = (['ofe', 'def', 'man'] as const)[p.nextInt(0, 2)];
             s[k] += 7;
             return `¡Reliquia auténtica! +7 ${k.toUpperCase()}.`;
@@ -144,6 +262,7 @@ export const BRANCHING_EVENTS: BranchingEvent[] = [
       },
       {
         label: 'Regatear chatarra (seguro)',
+        successProb: 0,
         apply: (s) => {
           s.ofe += 2;
           return 'Compras algunas armas usadas. +2 Ofensiva.';
@@ -158,8 +277,9 @@ export const BRANCHING_EVENTS: BranchingEvent[] = [
     branches: [
       {
         label: 'Aceptar el duelo (60%)',
-        apply: (s, p) => {
-          if (p.nextFloat() < 0.6) {
+        successProb: 0.6,
+        apply: (s, success) => {
+          if (success) {
             s.ofe += 7;
             return '¡Victoria gloriosa ante la tropa! +7 Ofensiva.';
           }
@@ -169,6 +289,7 @@ export const BRANCHING_EVENTS: BranchingEvent[] = [
       },
       {
         label: 'Declinar con honor (seguro)',
+        successProb: 0,
         apply: (s) => {
           s.man += 3;
           return 'Mantienes la disciplina y el respeto. +3 Mando.';
@@ -183,8 +304,9 @@ export const BRANCHING_EVENTS: BranchingEvent[] = [
     branches: [
       {
         label: 'Banquete (55%)',
-        apply: (s, p) => {
-          if (p.nextFloat() < 0.55) {
+        successProb: 0.55,
+        apply: (s, success) => {
+          if (success) {
             s.ofe += 4;
             s.def += 4;
             return '¡La moral se dispara! +4 Ofensiva y +4 Defensiva.';
@@ -195,6 +317,7 @@ export const BRANCHING_EVENTS: BranchingEvent[] = [
       },
       {
         label: 'Raciones medidas (seguro)',
+        successProb: 0,
         apply: (s) => {
           s.ofe += 2;
           s.def += 2;
@@ -210,8 +333,9 @@ export const BRANCHING_EVENTS: BranchingEvent[] = [
     branches: [
       {
         label: 'Entrenamiento brutal (50%)',
-        apply: (s, p) => {
-          if (p.nextFloat() < 0.5) {
+        successProb: 0.5,
+        apply: (s, success) => {
+          if (success) {
             s.man += 6;
             s.def += 2;
             return '¡Lección magistral! +6 Mando y +2 Defensiva.';
@@ -223,6 +347,7 @@ export const BRANCHING_EVENTS: BranchingEvent[] = [
       },
       {
         label: 'Charla amistosa (seguro)',
+        successProb: 0,
         apply: (s) => {
           s.man += 3;
           return 'Sabios consejos junto al fuego. +3 Mando.';

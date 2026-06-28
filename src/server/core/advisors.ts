@@ -7,28 +7,38 @@
    resuelve desde este catálogo.
    ============================================================ */
 import { Affinity } from '../../shared/types/index.ts';
+import { CONSEJERO_ABILITIES } from '../../shared/sim/consejeroAbilities.ts';
 
 export interface AdvisorDef {
   id: string;
   name: string;
   affinity: Affinity;
+  /** Habilidad de combate que desbloquea al cruzar el umbral de afinidad (ver decisions/0011). */
+  ability: string;
+  abilityKey: string;
+}
+
+/** Construye una definición resolviendo su habilidad desde la tabla compartida. */
+function def(id: string, name: string, affinity: Affinity): AdvisorDef {
+  const ab = CONSEJERO_ABILITIES[id];
+  return { id, name, affinity, ability: ab?.ability ?? '', abilityKey: ab?.abilityKey ?? '' };
 }
 
 // Los 3 consejeros con los que arranca todo usuario nuevo.
 export const DEFAULT_CONSEJEROS: AdvisorDef[] = [
-  { id: 'c1', name: 'Consejero de Guerra', affinity: 'OFE' },
-  { id: 'c2', name: 'Albañil del Muro', affinity: 'DEF' },
-  { id: 'c3', name: 'Maestre de Cuentas', affinity: 'MAN' },
+  def('c1', 'Consejero de Guerra', 'OFE'),
+  def('c2', 'Albañil del Muro', 'DEF'),
+  def('c3', 'Maestre de Cuentas', 'MAN'),
 ];
 
 // Pool de consejeros que se pueden adquirir (p. ej. tirada sembrada del reto diario).
 export const ACQUIRABLE_CONSEJEROS: AdvisorDef[] = [
-  { id: 'c4', name: 'Capitán de la Vanguardia', affinity: 'OFE' },
-  { id: 'c5', name: 'Centinela de la Puerta', affinity: 'DEF' },
-  { id: 'c6', name: 'Cartógrafa Real', affinity: 'MAN' },
-  { id: 'c7', name: 'Verdugo de Asedios', affinity: 'OFE' },
-  { id: 'c8', name: 'Guardiana del Foso', affinity: 'DEF' },
-  { id: 'c9', name: 'Espía de la Corte', affinity: 'MAN' },
+  def('c4', 'Capitán de la Vanguardia', 'OFE'),
+  def('c5', 'Centinela de la Puerta', 'DEF'),
+  def('c6', 'Cartógrafa Real', 'MAN'),
+  def('c7', 'Verdugo de Asedios', 'OFE'),
+  def('c8', 'Guardiana del Foso', 'DEF'),
+  def('c9', 'Espía de la Corte', 'MAN'),
 ];
 
 // Mapa id -> definición, para resolver identidad en O(1).

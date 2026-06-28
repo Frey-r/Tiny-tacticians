@@ -10,11 +10,12 @@
    feedback desde el `TurnResult`. El servidor acuña con la MISMA
    función, así que no pueden divergir.
 
-   La decisión del turno es una apuesta legible:
-   - Entrenar OFE/DEF/MAN: gasta energía; energía baja = riesgo de
-     FALLO; cada tirada puede ser fallo / normal / CRÍTICO.
-   - Descansar: recupera energía a cambio del turno.
-   - Eventos (turnos derivados del seed): dilema con 2 ramas.
+   La decisión del turno es una apuesta legible resuelta con DADOS:
+   - El jugador ASIGNA consejeros del deck al entrenamiento (toca los
+     slots); cada uno reforma el dado y sube su "afinidad" (bond),
+     que al cruzar el umbral desbloquea su habilidad de combate.
+   - Entrenar OFE/DEF/MAN: gasta energía y tira el dado (fallo/normal/
+     crítico). Descansar: recupera energía. Eventos: dilema con 2 ramas.
    ============================================================ */
 import Phaser from 'phaser';
 import { COLORS, GAME_W, PAD, CONTENT_W } from '../ui/theme.ts';
@@ -31,6 +32,7 @@ import {
   floatingGain,
   outcomeBanner,
 } from '../ui/widgets.ts';
+import { DiceRoller } from '../ui/diceRoller.ts';
 import {
   stepRun,
   previewTurn,
@@ -40,6 +42,8 @@ import {
   BASE_STAT,
   ENERGY_MAX,
   RUN_TURNS,
+  BOND_THRESHOLD,
+  CONSEJERO_ABILITY,
 } from '../../shared/sim/index.ts';
 import { loadUserData } from '../state.ts';
 import { api } from '../api.ts';
@@ -76,7 +80,11 @@ export class RunPlayScene extends Phaser.Scene {
   private actionLog: ActionLog = [];
   private energy = ENERGY_MAX;
   private mood = 1.0;
+  private bond: Record<string, number> = {};
+  private pendingConsejeros = new Set<string>();
+  private busy = false;
   private dyn?: Phaser.GameObjects.Container;
+  private roller?: DiceRoller;
 
   constructor() {
     super('RunPlay');
@@ -89,6 +97,9 @@ export class RunPlayScene extends Phaser.Scene {
     this.actionLog = [];
     this.energy = ENERGY_MAX;
     this.mood = 1.0;
+    this.bond = {};
+    this.pendingConsejeros = new Set<string>();
+    this.busy = false;
   }
 
   create(): void {
@@ -100,6 +111,8 @@ export class RunPlayScene extends Phaser.Scene {
 
   private render(): void {
     this.dyn?.destroy();
+    this.roller?.destroy();
+    this.roller = undefined;
     const c = this.add.container(0, 0);
     this.dyn = c;
 
@@ -167,18 +180,57 @@ export class RunPlayScene extends Phaser.Scene {
   ): Phaser.GameObjects.Container {
     const slot = this.add.container(x, y);
     const tint = adv ? affinityColor(adv.affinity) : COLORS.cardLo;
-    slot.add(this.add.rectangle(0, 0, w, h, adv ? COLORS.card2 : 0x3a342c).setStrokeStyle(3, adv ? tint : COLORS.border));
 
     if (!adv) {
+      slot.add(this.add.rectangle(0, 0, w, h, 0x3a342c).setStrokeStyle(3, COLORS.border));
       slot.add(bodyText(this, 0, 0, 'vacío', 14, COLORS.cardLo));
       return slot;
     }
 
-    slot.add(portrait(this, 0, -12, adv.id, 78, tint));
+    const selected = this.pendingConsejeros.has(adv.id);
+    const bondVal = this.bond[adv.id] ?? 0;
+    const unlocked = bondVal >= BOND_THRESHOLD;
+    const borderCol = selected ? COLORS.gold : unlocked ? COLORS.gold : tint;
+
+    slot.add(
+      this.add
+        .rectangle(0, 0, w, h, selected ? 0x4a4636 : COLORS.card2)
+        .setStrokeStyle(selected ? 4 : 3, borderCol)
+    );
+    slot.add(portrait(this, 0, -18, adv.id, 70, tint));
     slot.add(this.add.rectangle(w / 2 - 28, -h / 2 + 16, 50, 24, COLORS.panelDark).setStrokeStyle(2, COLORS.border));
     slot.add(titleText(this, w / 2 - 28, -h / 2 + 16, `LV.${adv.level}`, 10, COLORS.cream));
-    slot.add(bodyText(this, 0, h / 2 - 18, `* ${adv.name.split(' ')[0]}`, 13, COLORS.gold));
+    if (selected) slot.add(titleText(this, -w / 2 + 16, -h / 2 + 16, '✔', 14, COLORS.gold));
+    if (unlocked) slot.add(titleText(this, -w / 2 + 16, -h / 2 + 16, '★', 14, COLORS.gold));
+    slot.add(bodyText(this, 0, h / 2 - 30, `* ${adv.name.split(' ')[0]}`, 12, COLORS.gold));
+
+    // Medidor de AFINIDAD (bond) — barra fina al pie del slot.
+    const barW = w - 28;
+    const prog = Math.max(0, Math.min(1, bondVal / BOND_THRESHOLD));
+    slot.add(this.add.rectangle(0, h / 2 - 12, barW, 8, 0x3a2f22).setStrokeStyle(1, COLORS.border));
+    if (prog > 0) {
+      slot.add(
+        this.add
+          .rectangle(-barW / 2 + 1, h / 2 - 12, Math.max(2, (barW - 2) * prog), 5, unlocked ? COLORS.gold : tint)
+          .setOrigin(0, 0.5)
+      );
+    }
+
+    // Asignable solo en turnos de entrenamiento.
+    const assignable = !this.busy && this.turn < RUN_TURNS && !isEventTurn(this.run.seed, this.turn);
+    if (assignable) {
+      slot.setSize(w, h).setInteractive(new Phaser.Geom.Rectangle(-w / 2, -h / 2, w, h), Phaser.Geom.Rectangle.Contains);
+      if (slot.input) slot.input.cursor = 'pointer';
+      slot.on('pointerdown', () => this.toggleConsejero(adv.id));
+    }
     return slot;
+  }
+
+  private toggleConsejero(id: string): void {
+    if (this.busy || this.turn >= RUN_TURNS || isEventTurn(this.run.seed, this.turn)) return;
+    if (this.pendingConsejeros.has(id)) this.pendingConsejeros.delete(id);
+    else this.pendingConsejeros.add(id);
+    this.render();
   }
 
   /* ---- 3. Recuperación (descanso consume el turno) ------------- */
@@ -200,27 +252,37 @@ export class RunPlayScene extends Phaser.Scene {
   /* ---- 4. LIVE FEED -------------------------------------------- */
   private liveFeed(c: Phaser.GameObjects.Container): void {
     const cx = GAME_W / 2;
-    const py = 720;
-    const ph = 240;
+    const py = 700;
+    const ph = 210;
 
-    c.add(bodyText(this, PAD, 596, '* LIVE FEED', 14, COLORS.gold).setOrigin(0, 0.5));
+    c.add(bodyText(this, PAD, 580, '* LIVE FEED', 14, COLORS.gold).setOrigin(0, 0.5));
     c.add(this.add.rectangle(cx, py, CONTENT_W, ph, COLORS.panelDark).setStrokeStyle(3, COLORS.border));
     c.add(this.add.rectangle(cx, py, CONTENT_W - 16, ph - 16, COLORS.grassDark).setStrokeStyle(2, 0x2c2319));
 
-    c.add(this.add.image(cx - 218, py - 18, 'tower').setDisplaySize(110, 110));
-    c.add(this.add.image(cx + 214, py + 6, 'barracks').setDisplaySize(138, 110));
-    c.add(this.add.sprite(cx - 150, py + 72, 'warriorBlue').setDisplaySize(74, 74).play('warriorBlue_idle'));
-    c.add(this.add.sprite(cx + 130, py + 78, 'warriorBlue').setDisplaySize(74, 74).play('warriorBlue_idle'));
+    c.add(this.add.image(cx - 218, py - 18, 'tower').setDisplaySize(104, 104));
+    c.add(this.add.image(cx + 214, py + 6, 'barracks').setDisplaySize(130, 104));
+    c.add(this.add.sprite(cx - 150, py + 64, 'warriorBlue').setDisplaySize(70, 70).play('warriorBlue_idle'));
+    c.add(this.add.sprite(cx + 130, py + 70, 'warriorBlue').setDisplaySize(70, 70).play('warriorBlue_idle'));
 
-    c.add(portrait(this, cx, py - 12, this.run.name, 104, COLORS.gold));
-    c.add(bodyText(this, cx, py + 56, 'RETRATO GENERAL', 12, COLORS.cream));
+    c.add(portrait(this, cx, py - 12, this.run.name, 96, COLORS.gold));
     c.add(bodyText(this, cx, py + ph / 2 - 16, 'SECTOR 7G // TRAINING GROUND', 11, 0xcfe3a8).setAlpha(0.85));
   }
 
   /* ---- 5. Tarjetas de entrenamiento (la apuesta) -------------- */
   private trainingCards(c: Phaser.GameObjects.Container): void {
     const cx = GAME_W / 2;
-    c.add(titleText(this, cx, 982, 'ENTRENAMIENTO', 14, COLORS.cream));
+    c.add(titleText(this, cx, 962, 'ENTRENAMIENTO', 14, COLORS.cream));
+    const n = this.pendingConsejeros.size;
+    c.add(
+      bodyText(
+        this,
+        cx,
+        992,
+        n > 0 ? `${n} consejero(s) asignado(s) · toca una carta para entrenar` : 'toca un consejero para asignarlo · luego una carta',
+        12,
+        COLORS.gold
+      )
+    );
     (['OFE', 'DEF', 'MAN'] as Affinity[]).forEach((choice, j) => {
       c.add(this.statCard(choice, cx + (j - 1) * 214, 1130));
     });
@@ -230,7 +292,7 @@ export class RunPlayScene extends Phaser.Scene {
     const W = 200;
     const H = 222;
     const pal = STAT_PALETTE[choice];
-    const pv = previewTurn(this.run.advisors, choice, this.energy);
+    const pv = previewTurn(this.run.advisors, choice, this.energy, [...this.pendingConsejeros]);
     const risky = pv.successPct < 0.7;
 
     const card = this.add.container(x, y);
@@ -239,20 +301,27 @@ export class RunPlayScene extends Phaser.Scene {
     const top = this.add.rectangle(0, -H / 2 + 4, W - 8, 5, pal.top);
     const bottom = this.add.rectangle(0, H / 2 - 5, W - 8, 6, pal.edge);
 
-    const name = titleText(this, 0, -78, choice, 22, pal.text);
-    const val = titleText(this, 0, -28, String(this.stats[STAT_KEY[choice]]), 30, pal.text);
-    const gain = bodyText(this, 0, 18, `+${pv.normalGain}  (✦+${pv.critGain})`, 15, pal.text);
+    const name = titleText(this, 0, -82, choice, 22, pal.text);
+    const val = titleText(this, 0, -36, String(this.stats[STAT_KEY[choice]]), 28, pal.text);
+    const gain = bodyText(this, 0, 6, `+${pv.normalGain}  (✦+${pv.critGain})`, 15, pal.text);
     const odds = bodyText(
       this,
       0,
-      48,
+      36,
       `✓${Math.round(pv.successPct * 100)}%   ✦${Math.round(pv.critPct * 100)}%`,
       13,
       risky ? COLORS.gold : pal.text
     );
-    const cost = bodyText(this, 0, 76, `⚡ -${pv.energyCost} energía`, 12, pal.text).setAlpha(0.85);
+    // Lectura del dado efectivo (rango de caras tras los modificadores).
+    const die = pv.roll.dice[0]?.allowed ?? [1, 2, 3, 4, 5, 6];
+    const dieLabel =
+      pv.roll.dice.length > 1
+        ? `🎲x${pv.roll.dice.length} ${die[0]}-${die[die.length - 1]}`
+        : `🎲 ${die[0]}-${die[die.length - 1]}`;
+    const dieTxt = bodyText(this, 0, 62, dieLabel, 12, pal.text).setAlpha(0.9);
+    const cost = bodyText(this, 0, 86, `⚡ -${pv.energyCost} energía`, 12, pal.text).setAlpha(0.85);
 
-    const press = this.add.container(0, 0, [body, top, bottom, name, val, gain, odds, cost]);
+    const press = this.add.container(0, 0, [body, top, bottom, name, val, gain, odds, dieTxt, cost]);
     card.add([shadow, press]);
     card.setSize(W, H);
 
@@ -332,21 +401,24 @@ export class RunPlayScene extends Phaser.Scene {
     const res = stepRun(this.run.seed, this.run.advisors, this.actionLog);
     this.stats = res.stats;
     this.energy = res.energy;
+    this.bond = res.bond;
     return res.turns[res.turns.length - 1];
   }
 
   private train(choice: Affinity): void {
-    if (this.turn >= RUN_TURNS || isEventTurn(this.run.seed, this.turn)) return;
-    this.actionLog.push({ kind: 'train', choice });
+    if (this.busy || this.turn >= RUN_TURNS || isEventTurn(this.run.seed, this.turn)) return;
+    const consejeroIds = [...this.pendingConsejeros];
+    this.actionLog.push({ kind: 'train', choice, consejeroIds });
     const tr = this.recompute();
     this.applyMood(tr);
+    this.pendingConsejeros.clear();
     this.turn += 1;
     this.render();
-    this.showTrainFeedback(tr);
+    this.playDiceThenFeedback(tr);
   }
 
   private rest(): void {
-    if (this.turn >= RUN_TURNS || isEventTurn(this.run.seed, this.turn)) return;
+    if (this.busy || this.turn >= RUN_TURNS || isEventTurn(this.run.seed, this.turn)) return;
     this.actionLog.push({ kind: 'rest' });
     const tr = this.recompute();
     this.mood = Math.min(MOOD_MAX, this.mood + 0.05);
@@ -356,12 +428,14 @@ export class RunPlayScene extends Phaser.Scene {
   }
 
   private chooseEvent(branch: 0 | 1): void {
-    if (this.turn >= RUN_TURNS || !isEventTurn(this.run.seed, this.turn)) return;
+    if (this.busy || this.turn >= RUN_TURNS || !isEventTurn(this.run.seed, this.turn)) return;
     this.actionLog.push({ kind: 'event', branch });
     const tr = this.recompute();
     this.turn += 1;
     this.render();
-    if (tr.event) {
+
+    const showOutcome = (): void => {
+      if (!tr.event) return;
       const keys = Object.keys(tr.gains) as (keyof GeneralStats)[];
       const positive = keys.length > 0 && keys.every((k) => (tr.gains[k] ?? 0) >= 0);
       const negative = keys.some((k) => (tr.gains[k] ?? 0) < 0);
@@ -370,10 +444,55 @@ export class RunPlayScene extends Phaser.Scene {
       toast(this, tr.event.outcomeText, col);
       this.showStatDeltas(tr);
       this.mood = Phaser.Math.Clamp(this.mood + (negative ? -0.1 : positive ? 0.1 : 0), 0.5, MOOD_MAX);
+    };
+
+    if (tr.dice) {
+      this.busy = true;
+      this.roller?.destroy();
+      this.roller = new DiceRoller(this, GAME_W / 2, 880, {
+        onSettled: () => {
+          this.busy = false;
+          showOutcome();
+        },
+      });
+      this.roller.roll(tr.dice);
+    } else {
+      showOutcome();
     }
   }
 
   /* ---- Feedback por acción ------------------------------------- */
+  /** Tira el dado y, al asentar, dispara el feedback existente. */
+  private playDiceThenFeedback(tr: TurnResult): void {
+    if (tr.kind === 'train' && tr.dice) {
+      this.busy = true;
+      this.roller?.destroy();
+      this.roller = new DiceRoller(this, GAME_W / 2, 880, {
+        onSettled: () => {
+          this.busy = false;
+          this.showTrainFeedback(tr);
+          this.flashUnlocks(tr);
+        },
+      });
+      this.roller.roll(tr.dice);
+    } else {
+      this.showTrainFeedback(tr);
+      this.flashUnlocks(tr);
+    }
+  }
+
+  /** Banner dorado cuando un consejero CRUZA el umbral de afinidad este turno. */
+  private flashUnlocks(tr: TurnResult): void {
+    if (!tr.bondDeltas) return;
+    for (const [id, delta] of Object.entries(tr.bondDeltas)) {
+      const after = this.bond[id] ?? 0;
+      if (after >= BOND_THRESHOLD && after - delta < BOND_THRESHOLD) {
+        const ability = CONSEJERO_ABILITY[id];
+        if (ability) outcomeBanner(this, `★ AFINIDAD: ${ability}`, COLORS.gold, false);
+      }
+    }
+  }
+
   private showTrainFeedback(tr: TurnResult): void {
     if (tr.kind !== 'train' || !tr.choice) return;
     const idx = (['OFE', 'DEF', 'MAN'] as Affinity[]).indexOf(tr.choice);
@@ -396,7 +515,7 @@ export class RunPlayScene extends Phaser.Scene {
     present.forEach((k, i) => {
       const d = tr.gains[k] ?? 0;
       const x = GAME_W / 2 + (i - (present.length - 1) / 2) * 130;
-      floatingGain(this, x, 660, `${d > 0 ? '+' : ''}${d} ${k.toUpperCase()}`, d > 0 ? COLORS.lime : COLORS.danger, 20);
+      floatingGain(this, x, 640, `${d > 0 ? '+' : ''}${d} ${k.toUpperCase()}`, d > 0 ? COLORS.lime : COLORS.danger, 20);
     });
   }
 
