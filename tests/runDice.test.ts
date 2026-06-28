@@ -71,7 +71,36 @@ describe('stepRun — dados, bond y habilidades', () => {
   });
 });
 
+describe('stepRun — logs parciales (preview incremental del cliente)', () => {
+  it('does not throw on a 1-action log and returns one turn', () => {
+    const res = stepRun('partial_seed', deck, [{ kind: 'train', choice: 'OFE', consejeroIds: ['c1'] }]);
+    expect(res.turns).toHaveLength(1);
+  });
+
+  it('simulates a growing prefix turn by turn', () => {
+    const seed = 'prefix_seed';
+    const full = assignedLog(seed, ['c1']);
+    for (let n = 1; n <= 5; n++) {
+      const res = stepRun(seed, deck, full.slice(0, n));
+      expect(res.turns).toHaveLength(n);
+    }
+  });
+
+  it('rejects a log longer than RUN_TURNS', () => {
+    const seed = 'too_long';
+    const log = [...assignedLog(seed, []), { kind: 'rest' as const }];
+    expect(() => stepRun(seed, deck, log)).toThrow();
+  });
+});
+
 describe('simulateRun — acuñación con habilidades de consejero', () => {
+  it('requires a complete 16-turn log to mint', () => {
+    const seed = 'incomplete';
+    expect(() => simulateRun(seed, deck, assignedLog(seed, []).slice(0, 10))).toThrow(
+      `El actionLog debe tener exactamente ${RUN_TURNS} acciones.`
+    );
+  });
+
   it('mints with SIM_VERSION and folds the unlocked ability into the general', () => {
     const seed = 'mint_v2';
     const g = simulateRun(seed, deck, assignedLog(seed, ['c1']), 'Tester');

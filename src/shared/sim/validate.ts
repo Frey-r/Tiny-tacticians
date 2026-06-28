@@ -9,7 +9,8 @@ import { RUN_TURNS, eventTurns } from './balance.ts';
 export function validateActionLog(
   seed: string,
   deckSnapshot: DeckSnapshot,
-  actionLog: ActionLog
+  actionLog: ActionLog,
+  opts: { requireComplete?: boolean } = {}
 ): { isValid: boolean; error?: string } {
   if (!Array.isArray(deckSnapshot) || deckSnapshot.length === 0) {
     return { isValid: false, error: 'El deckSnapshot debe ser un arreglo no vacío.' };
@@ -19,8 +20,14 @@ export function validateActionLog(
     return { isValid: false, error: 'El actionLog debe ser un arreglo.' };
   }
 
-  if (actionLog.length !== RUN_TURNS) {
+  // El cliente simula de forma INCREMENTAL (logs parciales tras cada decisión),
+  // así que la longitud exacta solo se exige al acuñar (`requireComplete`). Lo que
+  // nunca se permite es exceder el total de turnos.
+  if (opts.requireComplete && actionLog.length !== RUN_TURNS) {
     return { isValid: false, error: `El actionLog debe tener exactamente ${RUN_TURNS} acciones.` };
+  }
+  if (actionLog.length > RUN_TURNS) {
+    return { isValid: false, error: `El actionLog no puede exceder ${RUN_TURNS} acciones.` };
   }
 
   const validAffinities = new Set(['OFE', 'DEF', 'MAN']);

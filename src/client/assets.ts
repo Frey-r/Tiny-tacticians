@@ -81,14 +81,18 @@ export const PANEL = {
 
 /* ---- Dados (spritesheet 168x86 = 6 col x 3 filas, frame 28x28).
    Fila superior (frames 0..5) = caras de pips 1..6 (verificado por
-   conteo de pips). Las otras filas (símbolos/geométricos) no se usan. */
+   conteo de pips). Fila central (6..11) = dados "en blanco"/geométricos
+   (se usan para el giro). Fila inferior (12..17) = símbolos (sin usar). */
 export const DICE = {
   url: dicesSprite,
   key: 'ui_dice',
   frameW: 28,
   frameH: 28,
+  cols: 6,
   /** Cara (1..6) -> índice de frame de la fila de pips. */
   pipFrame: (v: number): number => Math.min(6, Math.max(1, Math.round(v))) - 1,
+  /** Frames de la fila central (dados en blanco) para la animación de giro. */
+  blankFrames: [6, 7, 8, 9, 10, 11] as number[],
 } as const;
 
 // Unidades

@@ -19,12 +19,15 @@
       }
       /* Fondo temático para el letterbox: en escritorio el lienzo portrait
          se centra y los lados muestran este degradado oscuro de la paleta. */
-      /* Sin flexbox: Phaser centra el lienzo (autoCenter CENTER_BOTH) vía
-         márgenes y así el mapeo de clics conoce el offset del letterbox.
-         Centrar también por CSS duplicaría el desplazamiento. */
+      /* El CSS (flexbox) centra el lienzo y Phaser usa autoCenter NONE: así el
+         mapeo de clics (getBoundingClientRect) coincide con lo que se ve.
+         Centrar con CENTER_BOTH desfasaba los clics arriba-izquierda. */
       #game {
         width: 100vw;
         height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         overflow: hidden;
         background:
           radial-gradient(circle at 50% 40%, #1f1812 0%, #15110e 60%, #0d0a08 100%);

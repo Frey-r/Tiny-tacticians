@@ -1,6 +1,7 @@
 import { DeckSnapshot, ActionLog, General } from '../types/index.ts';
 import { PRNG } from './prng.ts';
 import { stepRun } from './stepRun.ts';
+import { validateActionLog } from './validate.ts';
 import { calculatePower, calculateTier, deriveAbilities, SIM_VERSION } from './balance.ts';
 
 /**
@@ -17,7 +18,14 @@ export function simulateRun(
   actionLog: ActionLog,
   name?: string
 ): General {
-  const { stats, unlockedAbilities } = stepRun(seed, deckSnapshot, actionLog); // valida internamente
+  // Acuñar EXIGE una run completa (16 turnos). stepRun valida cada acción, pero la
+  // longitud exacta solo se comprueba aquí (el cliente simula con logs parciales).
+  const completeness = validateActionLog(seed, deckSnapshot, actionLog, { requireComplete: true });
+  if (!completeness.isValid) {
+    throw new Error(completeness.error || 'Invalid action log');
+  }
+
+  const { stats, unlockedAbilities } = stepRun(seed, deckSnapshot, actionLog); // valida cada acción
 
   const idp = new PRNG(`${seed}:id`);
   const generalId = `gen_${idp.nextHex(8)}_${idp.nextInt(100000, 999999)}`;

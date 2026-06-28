@@ -162,12 +162,15 @@ export class RunPlayScene extends Phaser.Scene {
     c.add(bodyText(this, PAD, 292, 'ESTADO DE ASESORES', 14, COLORS.cream).setOrigin(0, 0.5));
     c.add(bodyText(this, GAME_W - PAD, 292, '* ACTIVOS', 12, COLORS.gold).setOrigin(1, 0.5));
 
-    const slotW = 150;
+    // Dibuja exactamente los asesores del deck (no un 4º slot vacío).
+    const advisors = this.run.advisors;
+    const n = Math.max(1, advisors.length);
+    const gap = 16;
+    const slotW = (CONTENT_W - (n - 1) * gap) / n;
     const slotH = 132;
-    for (let i = 0; i < 4; i++) {
-      const x = PAD + slotW / 2 + i * (slotW + 16);
-      const adv = this.run.advisors[i];
-      c.add(this.advisorSlot(adv ?? null, x, 374, slotW, slotH));
+    for (let i = 0; i < n; i++) {
+      const x = PAD + slotW / 2 + i * (slotW + gap);
+      c.add(this.advisorSlot(advisors[i] ?? null, x, 374, slotW, slotH));
     }
   }
 

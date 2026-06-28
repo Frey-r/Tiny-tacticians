@@ -3,9 +3,10 @@
 
    El RESULTADO ya lo decidió el motor (stepRun) y viaja en
    TurnResult.dice (caras, banda, spec efectivo). Este widget solo
-   ANIMA: hace "tumble" ciclando SÓLO las caras permitidas de cada
-   dado y aterriza en `faces`. Al asentar el último dado llama a
-   `onSettled` para que la escena dispare su feedback habitual.
+   ANIMA: gira mostrando los dados "en blanco" (fila central del
+   sprite) durante 2 ciclos y aterriza en la cara con pips del
+   resultado. Al asentar el último dado llama a `onSettled` para que
+   la escena dispare su feedback habitual.
    ============================================================ */
 import Phaser from 'phaser';
 import { COLORS } from './theme.ts';
@@ -84,7 +85,7 @@ export class DiceRoller {
         .rectangle(dx, 0, dieSize + 12, dieSize + 12, COLORS.card)
         .setStrokeStyle(3, COLORS.border);
       const sprite = this.scene.add
-        .sprite(dx, 0, DICE.key, DICE.pipFrame(allowed[0]))
+        .sprite(dx, 0, DICE.key, DICE.blankFrames[0])
         .setDisplaySize(dieSize, dieSize);
       this.root.add([plate, sprite]);
 
@@ -100,22 +101,10 @@ export class DiceRoller {
         )
       );
 
-      // Tumble: ciclar SÓLO caras permitidas (Math.random: puro display, no es el resultado).
-      const tumble = this.scene.time.addEvent({
-        delay: 70,
-        loop: true,
-        callback: () => sprite.setFrame(DICE.pipFrame(allowed[(Math.random() * allowed.length) | 0])),
-      });
-      this.timers.push(tumble);
-      this.scene.tweens.add({ targets: [plate, sprite], y: -10, angle: 8, yoyo: true, repeat: -1, duration: 180 });
-
-      // Settle escalonado.
-      const settle = this.scene.time.delayedCall(this.tumbleMs + i * this.staggerMs, () => {
-        tumble.remove(false);
+      const settleDie = (): void => {
         this.scene.tweens.killTweensOf([plate, sprite]);
-        sprite.setAngle(0).setFrame(DICE.pipFrame(finalFace));
+        sprite.setAngle(0).setPosition(dx, 0).setFrame(DICE.pipFrame(finalFace));
         plate.setAngle(0).setPosition(dx, 0).setStrokeStyle(3, BAND_COLOR[res.band] ?? COLORS.border);
-        sprite.setPosition(dx, 0);
         this.scene.tweens.add({
           targets: [plate, sprite],
           scaleX: { from: 1.25, to: 1 },
@@ -125,8 +114,30 @@ export class DiceRoller {
         });
         settledCount++;
         if (settledCount === n) this.finish(res, dieSize);
+      };
+
+      // Giro: 2 ciclos de la fila central (dados en blanco) y aterriza en el número.
+      const spinSeq = [...DICE.blankFrames, ...DICE.blankFrames];
+      const stepMs = Math.max(45, Math.round(this.tumbleMs / spinSeq.length));
+      const start = this.scene.time.delayedCall(i * this.staggerMs, () => {
+        this.scene.tweens.add({ targets: [plate, sprite], y: -10, angle: 8, yoyo: true, repeat: -1, duration: 150 });
+        let k = 0;
+        const spin = this.scene.time.addEvent({
+          delay: stepMs,
+          loop: true,
+          callback: () => {
+            if (k < spinSeq.length) {
+              sprite.setFrame(spinSeq[k]);
+              k++;
+            } else {
+              spin.remove(false);
+              settleDie();
+            }
+          },
+        });
+        this.timers.push(spin);
       });
-      this.timers.push(settle);
+      this.timers.push(start);
     });
   }
 
