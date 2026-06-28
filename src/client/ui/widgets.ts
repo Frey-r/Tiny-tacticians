@@ -248,8 +248,13 @@ export function retroButton(
   container.setSize(w, h);
 
   if (enabled) {
+    // El hit-area de un Container va en coords TOP-LEFT: Phaser suma
+    // displayOrigin (w/2, h/2) al punto local antes de probar Contains
+    // (ver InputManager.pointWithinHitArea). Con setSize(w,h) el origin
+    // queda en el centro, así que un rect (0,0,w,h) cubre el botón visible.
+    // Un rect centrado (-w/2,-h/2) se desplazaría medio botón arriba-izq.
     container.setInteractive(
-      new Phaser.Geom.Rectangle(-w / 2, -h / 2, w, h),
+      new Phaser.Geom.Rectangle(0, 0, w, h),
       Phaser.Geom.Rectangle.Contains
     );
     if (container.input) container.input.cursor = 'pointer';

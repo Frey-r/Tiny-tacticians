@@ -74,6 +74,29 @@ export async function getUserConsejeros(userId: string): Promise<Consejero[]> {
     });
   }
 
+  // Préstamo diario temporal (petición diaria): incluirlo como consejero usable
+  // mientras esté vigente (la clave Redis tiene TTL de 24h). No es desbloqueo
+  // permanente; se marca `temporary` para que la UI lo distinga.
+  const loanRaw = await redis.get(keys.userLoan(userId));
+  if (loanRaw) {
+    try {
+      const loan = JSON.parse(loanRaw) as { advisorId: string; expiresAt: number };
+      const base = ADVISOR_CATALOG[loan.advisorId];
+      if (base && !(loan.advisorId in owned)) {
+        results.push({
+          id: base.id,
+          name: base.name,
+          affinity: base.affinity,
+          level: 1,
+          temporary: true,
+          expiresAt: loan.expiresAt,
+        });
+      }
+    } catch {
+      /* préstamo corrupto: ignorar */
+    }
+  }
+
   results.sort((a, b) => advisorOrder(a.id) - advisorOrder(b.id));
   return results;
 }

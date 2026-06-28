@@ -60,12 +60,14 @@ forma atómica e idempotente.
 - WHEN envía el reclamo
 - THEN el servidor lo rechaza por reto expirado
 
-### Requirement: Server-Rolled Consejero Acquisition
-La adquisición de un nuevo consejero a partir del reto diario SHALL decidirse en el servidor con
-aleatoriedad sembrada. El cliente MUST NOT poder forzar ni predecir la concesión.
+### Requirement: Daily Contract Reward
+El reclamo del reto diario SHALL entregar un **contrato** de consejero cuyo color se deriva del
+modificador del día (Caballería→rojo/OFE, Muralla→azul/DEF, Maestría→morado/MAN, Horda→blanco
+comodín). El contrato se canjea luego por un consejero a elección en reclutamiento (ver
+`meta-progression` §Consejero Acquisition). El cliente MUST NOT poder forzar el color.
 
-#### Scenario: Concesión de consejero (happy)
-- GIVEN un reclamo elegible cuya tirada sembrada concede un consejero
+#### Scenario: Reclamo entrega un contrato (happy)
+- GIVEN un reclamo elegible para el reto de hoy
 - WHEN el servidor procesa el reclamo
-- THEN añade el consejero a la colección del usuario una sola vez
-- AND la concesión es consistente con la semilla del reclamo
+- THEN acredita un contrato del color correspondiente al modificador del día una sola vez
+- AND el contrato queda disponible para canjear por un consejero

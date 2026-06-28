@@ -9,10 +9,10 @@
 import { redis } from '../devvitProxy/index.ts';
 import { keys } from './keys.ts';
 import { getGeneral } from './generals.ts';
-import { adjustGold, grantConsejero } from './rewards.ts';
+import { adjustGold } from './rewards.ts';
 import { checkRateLimit } from './rateLimit.ts';
 import { checkAndLockIdempotency, saveIdempotency } from './idempotency.ts';
-import { ACQUIRABLE_CONSEJEROS } from './advisors.ts';
+import { grantContract, contractColorForModifier } from './recruitment.ts';
 import { PRNG } from '../../shared/sim/prng.ts';
 import { simulateBattle } from '../../shared/sim/simulateBattle.ts';
 import {
@@ -26,7 +26,6 @@ import {
 import {
   General,
   GeneralStats,
-  Consejero,
   DailyChallenge,
   DailyModifier,
   DailyStatus,
@@ -37,7 +36,6 @@ const DAILY_TTL_SECONDS = 2 * 24 * 3600; // el reto y sus marcadores viven 2 dí
 const BATTLE_TTL_SECONDS = 86400; // 24h de replay
 const DAILY_GOLD = 100;
 const DAILY_SCORE = 5;
-const DAILY_CONSEJERO_CHANCE = 0.25; // 25% de conceder un consejero al reclamar
 const DAILY_BATTLE_LIMIT = 30; // combates diarios por hora (anti-abuso)
 
 // Modificadores del día: cada uno sesga la generación del enemigo de forma temática.
@@ -199,14 +197,6 @@ export async function resolveDailyBattle(
   return { battleResult, completed };
 }
 
-async function rollAndGrantConsejero(userId: string, prng: PRNG): Promise<Consejero | null> {
-  const ownedMap = await redis.hGetAll(keys.userConsejeros(userId));
-  const candidates = ACQUIRABLE_CONSEJEROS.filter((a) => !(a.id in ownedMap));
-  if (candidates.length === 0) return null;
-  const pick = candidates[prng.nextInt(0, candidates.length - 1)];
-  return grantConsejero(userId, pick.id);
-}
-
 /**
  * Reclama la recompensa diaria una sola vez por usuario y fecha, de forma
  * atómica e idempotente. Requiere haber completado el reto de hoy.
@@ -237,19 +227,18 @@ export async function claimDaily(
   const newGoldTotal = await adjustGold(userId, DAILY_GOLD);
   await redis.zIncrBy(keys.lbSeason(1), userId, DAILY_SCORE);
 
-  // Tirada sembrada de consejero: decidida por el servidor, no por el cliente.
-  let consejeroGranted: Consejero | null = null;
-  const prng = new PRNG(`claim_${date}_${userId}`);
-  if (prng.nextFloat() < DAILY_CONSEJERO_CHANCE) {
-    consejeroGranted = await rollAndGrantConsejero(userId, prng);
-  }
+  // El reto diario entrega un CONTRATO (color según el modificador del día),
+  // canjeable luego por un consejero a elección en Reclutamiento.
+  const challenge = await getOrCreateDailyChallenge(date);
+  const contractGranted = contractColorForModifier(challenge.modifier.id);
+  await grantContract(userId, contractGranted);
 
   const result: DailyClaimResult = {
     date,
     goldEarned: DAILY_GOLD,
     scoreEarned: DAILY_SCORE,
     newGoldTotal,
-    consejeroGranted,
+    contractGranted,
   };
 
   await saveIdempotency(token, JSON.stringify(result), DAILY_TTL_SECONDS);

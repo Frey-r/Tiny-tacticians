@@ -10,6 +10,7 @@ import { HomeScene } from './scenes/HomeScene.ts';
 import { CollectionScene } from './scenes/CollectionScene.ts';
 import { RunSetupScene } from './scenes/RunSetupScene.ts';
 import { RunPlayScene } from './scenes/RunPlayScene.ts';
+import { ReclutamientoScene } from './scenes/ReclutamientoScene.ts';
 import { PvpScene } from './scenes/PvpScene.ts';
 import { PvpCombatScene } from './scenes/PvpCombatScene.ts';
 import { EventosScene } from './scenes/EventosScene.ts';
@@ -22,10 +23,12 @@ const config: Phaser.Types.Core.GameConfig = {
   roundPixels: true,
   scale: {
     mode: Phaser.Scale.FIT,
-    // El lienzo lo centra el CSS (#game con flexbox) y Phaser mapea los clics
-    // vía getBoundingClientRect, así que autoCenter DEBE ser NONE. Con
-    // CENTER_BOTH (Phaser centra por márgenes) el mapeo de input se desfasa en
-    // la webview de Devvit y los clics quedan arriba-izquierda del botón.
+    // El CSS (#game con flexbox) centra el lienzo y autoCenter queda en NONE
+    // para no duplicar el centrado por márgenes. El render y el hit-testing de
+    // Phaser comparten esta misma transformación de cámara/escala, así que el
+    // modo de escala NO puede desfasar un botón respecto de su zona clickeable
+    // (ambos se mueven juntos). El desfase histórico arriba-izquierda venía del
+    // origen del hit-area de los Container, ya corregido en widgets/scenes.
     autoCenter: Phaser.Scale.NONE,
     width: GAME_W,
     height: GAME_H,
@@ -36,6 +39,7 @@ const config: Phaser.Types.Core.GameConfig = {
     CollectionScene,
     RunSetupScene,
     RunPlayScene,
+    ReclutamientoScene,
     PvpScene,
     PvpCombatScene,
     EventosScene,
@@ -53,10 +57,10 @@ async function start(): Promise<void> {
   const game = new Phaser.Game(config);
 
   // El lienzo toma su posición FINAL después de crear el juego (el CSS lo centra
-  // tras el layout/fuentes). Phaser NO detecta ese cambio del DOM, así que su
-  // `canvasBounds` (que usa para mapear los clics) queda obsoleto y los clics
-  // salen desfasados arriba-izquierda. La doc de Phaser indica llamar a
-  // `scale.updateBounds()` para refrescar esos bounds tras cambios del DOM.
+  // tras el layout/fuentes). Refrescamos los bounds para que `canvasBounds`
+  // (origen que Phaser usa para mapear el puntero a coords del lienzo) quede al
+  // día y el puntero caiga donde se ve. Esto corrige una traslación global del
+  // input, distinto del bug de origen del hit-area que se arregló en widgets.
   const refresh = (): void => {
     game.scale.refresh();
     game.scale.updateBounds();

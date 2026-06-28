@@ -7,6 +7,26 @@ export interface Consejero {
   name: string;
   affinity: Affinity;
   level: number;
+  /** Préstamo diario temporal: el consejero expira a `expiresAt` (no es desbloqueo permanente). */
+  temporary?: boolean;
+  expiresAt?: number;
+}
+
+/* ---- Contratos de reclutamiento (desbloqueo permanente de consejeros) ---- */
+export const CONTRACT_COLORS = ['white', 'red', 'blue', 'purple'] as const;
+export type ContractColor = (typeof CONTRACT_COLORS)[number];
+export type Contracts = Record<ContractColor, number>;
+
+/** Color de contrato -> afinidad que puede desbloquear (blanco es comodín). */
+export const CONTRACT_AFFINITY: Record<Exclude<ContractColor, 'white'>, Affinity> = {
+  red: 'OFE',
+  blue: 'DEF',
+  purple: 'MAN',
+};
+
+/** ¿Un contrato de `color` puede desbloquear un consejero de `affinity`? */
+export function contractMatches(color: ContractColor, affinity: Affinity): boolean {
+  return color === 'white' || CONTRACT_AFFINITY[color] === affinity;
 }
 
 export type DeckSnapshot = Consejero[];
@@ -140,5 +160,25 @@ export interface DailyClaimResult {
   goldEarned: number;
   scoreEarned: number;
   newGoldTotal: number;
-  consejeroGranted: Consejero | null;
+  /** Color del contrato que entrega el reto diario (canjeable por un consejero). */
+  contractGranted: ContractColor | null;
+}
+
+/** Candidato del catálogo adquirible para la pantalla de reclutamiento. */
+export interface RecruitCandidate {
+  id: string;
+  name: string;
+  affinity: Affinity;
+  owned: boolean; // ya desbloqueado permanentemente
+  onLoan: boolean; // activo como préstamo temporal
+}
+
+/** Estado completo de la pantalla de reclutamiento. */
+export interface RecruitmentState {
+  gold: number;
+  contracts: Contracts;
+  loan: { advisorId: string; name: string; affinity: Affinity; expiresAt: number } | null;
+  loanAvailable: boolean; // sin préstamo activo y con pool disponible
+  unlockCost: number; // oro por desbloqueo con contrato
+  candidates: RecruitCandidate[];
 }

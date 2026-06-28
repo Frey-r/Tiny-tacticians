@@ -78,7 +78,7 @@ export class EventosScene extends Phaser.Scene {
     c.add(
       bodyText(this, cx, 318, this.challenge.modifier.description, 11, COLORS.ink).setWordWrapWidth(CONTENT_W - 60).setAlign('center')
     );
-    c.add(bodyText(this, cx, 356, 'Premio: +100 oro · +5 pts · chance de consejero', 12, COLORS.gold));
+    c.add(bodyText(this, cx, 356, 'Premio: +100 oro · +5 pts · +1 contrato de consejero', 12, COLORS.gold));
 
     if (this.status.claimed) {
       c.add(bodyText(this, cx, 440, '✅ Recompensa de hoy reclamada.\n¡Vuelve mañana!', 14, COLORS.lime).setAlign('center'));
@@ -161,7 +161,10 @@ export class EventosScene extends Phaser.Scene {
       await loadUserData();
       this.status = { completed: true, claimed: true };
       hide();
-      const extra = res.consejeroGranted ? ` ¡Nuevo consejero: ${res.consejeroGranted.name}!` : '';
+      const colorName: Record<string, string> = { white: 'comodín', red: 'rojo', blue: 'azul', purple: 'morado' };
+      const extra = res.contractGranted
+        ? ` Contrato ${colorName[res.contractGranted] ?? res.contractGranted} (canjéalo en Reclutamiento).`
+        : '';
       toast(this, `+${res.goldEarned} oro · +${res.scoreEarned} pts.${extra}`, COLORS.lime);
       this.renderDaily();
     } catch (err: any) {

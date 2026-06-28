@@ -1,6 +1,8 @@
 export const keys = {
   user: (id: string) => `user:${id}`,
   userConsejeros: (id: string) => `user:${id}:consejeros`,
+  userContracts: (id: string) => `user:${id}:contracts`,
+  userLoan: (id: string) => `user:${id}:loan`,
   userGenerals: (id: string) => `user:${id}:generals`,
   general: (gid: string) => `general:${gid}`,
   poolPower: () => 'pool:power',

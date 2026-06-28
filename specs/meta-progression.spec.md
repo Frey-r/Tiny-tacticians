@@ -43,6 +43,37 @@ habilidad cuando se lleve a una run futura.
 - THEN el servidor rechaza la operación
 - AND no debita recursos
 
+### Requirement: Consejero Acquisition
+El servidor SHALL ofrecer dos vías para obtener consejeros del pool adquirible, ambas
+autoritativas en servidor:
+1. **Petición diaria (préstamo temporal):** una vez por ventana de 24h el usuario SHALL poder
+   solicitar un consejero AL AZAR de los que aún no posee; el préstamo SHALL ser temporal (vence a
+   las 24h) y usable en runs mientras esté vigente, pero NO es desbloqueo permanente.
+2. **Contrato (desbloqueo permanente):** el usuario SHALL poder canjear un contrato de color +
+   oro por un consejero a elección cuya afinidad coincida con el color (blanco = comodín). El
+   débito de contrato y oro y la concesión SHALL ser atómicos.
+
+#### Scenario: Préstamo diario temporal (happy)
+- GIVEN un usuario con un préstamo no activo y consejeros faltantes
+- WHEN solicita la petición diaria
+- THEN el servidor le presta un consejero aleatorio faltante por 24h
+- AND aparece como consejero usable mientras esté vigente
+
+#### Scenario: Segunda petición dentro de la ventana (sad)
+- GIVEN un usuario con un préstamo activo
+- WHEN solicita otro
+- THEN el servidor lo rechaza hasta que expire el actual
+
+#### Scenario: Desbloqueo con contrato del color correcto (happy)
+- GIVEN un usuario con un contrato cuyo color coincide con la afinidad (o blanco) y oro suficiente
+- WHEN reclama el consejero
+- THEN el servidor descuenta el contrato y el oro y lo desbloquea permanentemente
+
+#### Scenario: Color de contrato que no coincide (sad)
+- GIVEN un contrato cuyo color no corresponde a la afinidad del consejero (y no es blanco)
+- WHEN el usuario intenta canjearlo
+- THEN el servidor rechaza la operación sin gastar contrato ni oro
+
 ### Requirement: Settlement Leveling
 El nivel del asentamiento SHALL subir al cruzar umbrales y SHALL desbloquear ventajas
 (p. ej. un slot adicional de consejero o pasivas) en niveles definidos.

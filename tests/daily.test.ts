@@ -9,6 +9,7 @@ import {
   claimDaily,
 } from '../src/server/core/daily.ts';
 import { getUserProfile, getUserConsejeros, grantConsejero } from '../src/server/core/rewards.ts';
+import { getContracts } from '../src/server/core/recruitment.ts';
 import type { General, DailyChallenge } from '../src/shared/types/index.ts';
 
 const today = getCanonicalDate();
@@ -97,6 +98,10 @@ describe('daily events', () => {
     const result = await claimDaily(user);
     expect(result.goldEarned).toBe(100);
     expect(result.newGoldTotal).toBe(before.gold + 100);
+
+    // El reto diario entrega un contrato (modificador 'm' del seed -> comodín blanco).
+    expect(result.contractGranted).toBe('white');
+    expect((await getContracts(user)).white).toBe(1);
 
     const after = await getUserProfile(user);
     expect(after.gold).toBe(before.gold + 100);

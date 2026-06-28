@@ -104,7 +104,9 @@ export class RunSetupScene extends Phaser.Scene {
     card.add(portrait(this, 0, -22, adv.id, 72, affinityColor(adv.affinity)));
     card.add(bodyText(this, 0, 38, `${adv.name.split(' ')[0]}`, 14, COLORS.ink));
     card.add(bodyText(this, 0, 58, `${adv.affinity} · Lv${adv.level}`, 12, COLORS.ink));
-    card.setSize(W, H).setInteractive(new Phaser.Geom.Rectangle(-W / 2, -H / 2, W, H), Phaser.Geom.Rectangle.Contains);
+    // Hit-area en coords top-left: Phaser suma displayOrigin (W/2,H/2) al
+    // punto local del Container antes de Contains, así que el rect va en (0,0).
+    card.setSize(W, H).setInteractive(new Phaser.Geom.Rectangle(0, 0, W, H), Phaser.Geom.Rectangle.Contains);
     if (card.input) card.input.cursor = 'pointer';
     card.on('pointerdown', () => this.toggle(adv.id));
     return card;

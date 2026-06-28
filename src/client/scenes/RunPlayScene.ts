@@ -222,7 +222,9 @@ export class RunPlayScene extends Phaser.Scene {
     // Asignable solo en turnos de entrenamiento.
     const assignable = !this.busy && this.turn < RUN_TURNS && !isEventTurn(this.run.seed, this.turn);
     if (assignable) {
-      slot.setSize(w, h).setInteractive(new Phaser.Geom.Rectangle(-w / 2, -h / 2, w, h), Phaser.Geom.Rectangle.Contains);
+      // Hit-area en coords top-left: Phaser suma displayOrigin (w/2,h/2) al
+      // punto local del Container antes de Contains, así que el rect va en (0,0).
+      slot.setSize(w, h).setInteractive(new Phaser.Geom.Rectangle(0, 0, w, h), Phaser.Geom.Rectangle.Contains);
       if (slot.input) slot.input.cursor = 'pointer';
       slot.on('pointerdown', () => this.toggleConsejero(adv.id));
     }
@@ -328,7 +330,9 @@ export class RunPlayScene extends Phaser.Scene {
     card.add([shadow, press]);
     card.setSize(W, H);
 
-    card.setInteractive(new Phaser.Geom.Rectangle(-W / 2, -H / 2, W, H), Phaser.Geom.Rectangle.Contains);
+    // Hit-area en coords top-left: Phaser suma displayOrigin (W/2,H/2) al
+    // punto local del Container antes de Contains, así que el rect va en (0,0).
+    card.setInteractive(new Phaser.Geom.Rectangle(0, 0, W, H), Phaser.Geom.Rectangle.Contains);
     if (card.input) card.input.cursor = 'pointer';
     card.on('pointerdown', () => {
       press.setPosition(3, 3);

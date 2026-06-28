@@ -81,7 +81,7 @@ export class CollectionScene extends Phaser.Scene {
 
   private renderAdvisors(c: Phaser.GameObjects.Container): void {
     const cx0 = GAME_W / 2;
-    c.add(bodyText(this, cx0, 195, `Consejeros ${store.advisors.length} / 12`, 15, COLORS.cream));
+    c.add(bodyText(this, cx0, 195, `Consejeros ${store.advisors.length} / 9`, 15, COLORS.cream));
     const cols = 3;
     const W = 188;
     const H = 150;
@@ -93,12 +93,23 @@ export class CollectionScene extends Phaser.Scene {
       card.add(portrait(this, 0, -20, adv.id, 70, affinityColor(adv.affinity)));
       card.add(bodyText(this, 0, 38, adv.name.split(' ')[0], 13, COLORS.ink));
       card.add(bodyText(this, 0, 58, `${adv.affinity} · Lv${adv.level}`, 12, COLORS.ink));
-      card.setSize(W, H).setInteractive(new Phaser.Geom.Rectangle(-W / 2, -H / 2, W, H), Phaser.Geom.Rectangle.Contains);
+      // Hit-area en coords top-left: Phaser suma displayOrigin (W/2,H/2) al
+      // punto local del Container antes de Contains, así que el rect va en (0,0).
+      card.setSize(W, H).setInteractive(new Phaser.Geom.Rectangle(0, 0, W, H), Phaser.Geom.Rectangle.Contains);
       if (card.input) card.input.cursor = 'pointer';
       card.on('pointerdown', () => this.openUpgrade(adv));
       c.add(card);
     });
-    c.add(bodyText(this, cx0, GAME_H - 44, 'Toca un consejero para subir su nivel (gasta oro).', 12, COLORS.cream));
+    c.add(
+      retroButton(this, cx0, 1150, '➕ RECLUTAR CONSEJERO', {
+        variant: 'lime',
+        width: CONTENT_W,
+        height: 72,
+        fontSize: 16,
+        onClick: () => this.scene.start('Reclutamiento'),
+      })
+    );
+    c.add(bodyText(this, cx0, GAME_H - 40, 'Toca un consejero para subir su nivel · Recluta nuevos con contratos.', 11, COLORS.cream));
   }
 
   private renderGenerals(c: Phaser.GameObjects.Container): void {
