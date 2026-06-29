@@ -52,15 +52,16 @@ export const FONT = {
   body: '"JetBrains Mono", "VT323", "Courier New", monospace',
 } as const;
 
-/** Tamaño base del lienzo (PORTRAIT / móvil, proporción 9:16).
+/** Tamaño base del lienzo (PORTRAIT / móvil, proporción 3:4 = 3 ancho · 4 alto).
  *  Scale.FIT escala este lienzo a cualquier pantalla; en escritorio se
  *  muestra como columna vertical centrada y el sobrante queda como
- *  letterbox (vestido por CSS en index.html). */
-export const GAME_W = 720;
+ *  letterbox (vestido por CSS en index.html). El ancho 960 (vs 720 antiguo)
+ *  da una columna más ancha para botones/textos más legibles. */
+export const GAME_W = 960;
 export const GAME_H = 1280;
 
 /** Margen lateral de la columna de contenido. */
-export const PAD = 36;
+export const PAD = 44;
 /** Ancho útil de la columna (botones/paneles full-width). */
 export const CONTENT_W = GAME_W - PAD * 2;
 /** Altura mínima táctil para botones (px en el espacio de diseño). */

@@ -99,13 +99,15 @@ export class PvpScene extends Phaser.Scene {
     const g = gens[i];
 
     const cx = GAME_W / 2;
-    c.add(titleText(this, cx, 150, 'Tu General', 16, COLORS.cream));
+    const panelLeft = cx - CONTENT_W / 2;
+    const txtX = panelLeft + 200;
+    c.add(titleText(this, cx, 152, 'Tu General', 18, COLORS.cream));
     c.add(retroPanel(this, cx, 300, CONTENT_W, 240, COLORS.card));
-    c.add(portrait(this, cx - 190, 300, g.id, 128, affinityColor('OFE')));
-    c.add(bodyText(this, cx - 95, 248, g.name, 18, COLORS.ink).setOrigin(0, 0.5));
-    c.add(bodyText(this, cx - 95, 290, `Tier ${tierLetter(g.tier)}  ·  Poder ${g.power}`, 14, COLORS.ink).setOrigin(0, 0.5));
+    c.add(portrait(this, panelLeft + 104, 300, g.id, 132, affinityColor('OFE')));
+    c.add(bodyText(this, txtX, 250, g.name, 20, COLORS.ink).setOrigin(0, 0.5));
+    c.add(bodyText(this, txtX, 294, `Tier ${tierLetter(g.tier)}  ·  Poder ${g.power}`, 15, COLORS.ink).setOrigin(0, 0.5));
     c.add(
-      bodyText(this, cx - 95, 330, `OFE ${g.stats.ofe} / DEF ${g.stats.def} / MAN ${g.stats.man}`, 13, COLORS.ink).setOrigin(0, 0.5)
+      bodyText(this, txtX, 334, `OFE ${g.stats.ofe} / DEF ${g.stats.def} / MAN ${g.stats.man}`, 14, COLORS.ink).setOrigin(0, 0.5)
     );
 
     // Cambiar general (ciclar)

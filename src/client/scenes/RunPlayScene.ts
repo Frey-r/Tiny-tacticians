@@ -135,42 +135,42 @@ export class RunPlayScene extends Phaser.Scene {
     const shown = Math.min(this.turn + 1, RUN_TURNS);
     const total = String(RUN_TURNS).padStart(2, '0');
 
-    const turnW = 416;
+    const turnW = 430;
     const turnX = PAD + turnW / 2;
-    c.add(retroPanel(this, turnX, 150, turnW, 88, COLORS.card));
-    c.add(titleText(this, turnX, 132, 'TURNO ACTUAL', 12, COLORS.ink));
-    c.add(titleText(this, turnX, 164, `${String(shown).padStart(2, '0')} / ${total}`, 24, COLORS.ink));
+    c.add(retroPanel(this, turnX, 152, turnW, 92, COLORS.card));
+    c.add(titleText(this, turnX, 132, 'TURNO ACTUAL', 14, COLORS.ink));
+    c.add(titleText(this, turnX, 166, `${String(shown).padStart(2, '0')} / ${total}`, 26, COLORS.ink));
 
     const moodW = CONTENT_W - turnW - 16;
     const moodX = GAME_W - PAD - moodW / 2;
     const face = this.mood >= 1.2 ? ':D' : this.mood >= 0.9 ? ':)' : ':(';
-    c.add(retroPanel(this, moodX, 150, moodW, 88, COLORS.card));
-    c.add(titleText(this, moodX, 132, 'ANIMO', 11, COLORS.ink));
-    c.add(bodyText(this, moodX, 166, `${face}  x${this.mood.toFixed(1)}`, 18, COLORS.ink));
+    c.add(retroPanel(this, moodX, 152, moodW, 92, COLORS.card));
+    c.add(titleText(this, moodX, 132, 'ANIMO', 14, COLORS.ink));
+    c.add(bodyText(this, moodX, 168, `${face}  x${this.mood.toFixed(1)}`, 20, COLORS.ink));
 
     // Barra de energía (ahora REAL: gobierna el riesgo de fallo).
     const pct = this.energy / ENERGY_MAX;
     const col = this.energy > 55 ? COLORS.lime : this.energy > 30 ? COLORS.gold : COLORS.danger;
-    c.add(bodyText(this, PAD, 212, 'ENERGIA', 15, COLORS.cream).setOrigin(0, 0.5));
-    c.add(bodyText(this, GAME_W - PAD, 212, `${Math.round(this.energy)}%`, 15, col).setOrigin(1, 0.5));
-    c.add(this.add.rectangle(PAD, 248, CONTENT_W, 28, 0x3a2f22).setOrigin(0, 0.5).setStrokeStyle(3, COLORS.border));
-    c.add(this.add.rectangle(PAD + 3, 248, Math.max(2, (CONTENT_W - 6) * pct), 20, col).setOrigin(0, 0.5));
+    c.add(bodyText(this, PAD, 216, 'ENERGIA', 18, COLORS.cream).setOrigin(0, 0.5));
+    c.add(bodyText(this, GAME_W - PAD, 216, `${Math.round(this.energy)}%`, 18, col).setOrigin(1, 0.5));
+    c.add(this.add.rectangle(PAD, 252, CONTENT_W, 30, 0x3a2f22).setOrigin(0, 0.5).setStrokeStyle(3, COLORS.border));
+    c.add(this.add.rectangle(PAD + 3, 252, Math.max(2, (CONTENT_W - 6) * pct), 22, col).setOrigin(0, 0.5));
   }
 
   /* ---- 2. Estado de asesores (deck) ---------------------------- */
   private advisorDeck(c: Phaser.GameObjects.Container): void {
-    c.add(bodyText(this, PAD, 292, 'ESTADO DE ASESORES', 14, COLORS.cream).setOrigin(0, 0.5));
-    c.add(bodyText(this, GAME_W - PAD, 292, '* ACTIVOS', 12, COLORS.gold).setOrigin(1, 0.5));
+    c.add(bodyText(this, PAD, 300, 'ESTADO DE ASESORES', 17, COLORS.cream).setOrigin(0, 0.5));
+    c.add(bodyText(this, GAME_W - PAD, 300, '* ACTIVOS', 14, COLORS.gold).setOrigin(1, 0.5));
 
     // Dibuja exactamente los asesores del deck (no un 4º slot vacío).
     const advisors = this.run.advisors;
     const n = Math.max(1, advisors.length);
-    const gap = 16;
+    const gap = 18;
     const slotW = (CONTENT_W - (n - 1) * gap) / n;
-    const slotH = 132;
+    const slotH = 140;
     for (let i = 0; i < n; i++) {
       const x = PAD + slotW / 2 + i * (slotW + gap);
-      c.add(this.advisorSlot(advisors[i] ?? null, x, 374, slotW, slotH));
+      c.add(this.advisorSlot(advisors[i] ?? null, x, 388, slotW, slotH));
     }
   }
 
@@ -186,7 +186,7 @@ export class RunPlayScene extends Phaser.Scene {
 
     if (!adv) {
       slot.add(this.add.rectangle(0, 0, w, h, 0x3a342c).setStrokeStyle(3, COLORS.border));
-      slot.add(bodyText(this, 0, 0, 'vacío', 14, COLORS.cardLo));
+      slot.add(bodyText(this, 0, 0, 'vacío', 16, COLORS.cardLo));
       return slot;
     }
 
@@ -200,12 +200,12 @@ export class RunPlayScene extends Phaser.Scene {
         .rectangle(0, 0, w, h, selected ? 0x4a4636 : COLORS.card2)
         .setStrokeStyle(selected ? 4 : 3, borderCol)
     );
-    slot.add(portrait(this, 0, -18, adv.id, 70, tint));
-    slot.add(this.add.rectangle(w / 2 - 28, -h / 2 + 16, 50, 24, COLORS.panelDark).setStrokeStyle(2, COLORS.border));
-    slot.add(titleText(this, w / 2 - 28, -h / 2 + 16, `LV.${adv.level}`, 10, COLORS.cream));
-    if (selected) slot.add(titleText(this, -w / 2 + 16, -h / 2 + 16, '✔', 14, COLORS.gold));
-    if (unlocked) slot.add(titleText(this, -w / 2 + 16, -h / 2 + 16, '★', 14, COLORS.gold));
-    slot.add(bodyText(this, 0, h / 2 - 30, `* ${adv.name.split(' ')[0]}`, 12, COLORS.gold));
+    slot.add(portrait(this, 0, -20, adv.id, 82, tint));
+    slot.add(this.add.rectangle(w / 2 - 30, -h / 2 + 18, 56, 28, COLORS.panelDark).setStrokeStyle(2, COLORS.border));
+    slot.add(titleText(this, w / 2 - 30, -h / 2 + 18, `LV.${adv.level}`, 12, COLORS.cream));
+    if (selected) slot.add(titleText(this, -w / 2 + 18, -h / 2 + 18, '✔', 16, COLORS.gold));
+    if (unlocked) slot.add(titleText(this, -w / 2 + 18, -h / 2 + 18, '★', 16, COLORS.gold));
+    slot.add(bodyText(this, 0, h / 2 - 32, `* ${adv.name.split(' ')[0]}`, 14, COLORS.gold));
 
     // Medidor de AFINIDAD (bond) — barra fina al pie del slot.
     const barW = w - 28;
@@ -240,14 +240,14 @@ export class RunPlayScene extends Phaser.Scene {
 
   /* ---- 3. Recuperación (descanso consume el turno) ------------- */
   private recovery(c: Phaser.GameObjects.Container): void {
-    c.add(bodyText(this, PAD, 462, 'RECUPERACIÓN', 14, COLORS.cream).setOrigin(0, 0.5));
+    c.add(bodyText(this, PAD, 472, 'RECUPERACIÓN', 17, COLORS.cream).setOrigin(0, 0.5));
     const full = this.energy >= ENERGY_MAX;
     c.add(
-      retroButton(this, GAME_W / 2, 510, full ? 'ENERGÍA AL MÁXIMO' : 'DESCANSO REPARADOR   (recupera energía)', {
+      retroButton(this, GAME_W / 2, 520, full ? 'ENERGÍA AL MÁXIMO' : 'DESCANSO REPARADOR   (recupera energía)', {
         variant: 'grey',
         width: CONTENT_W,
-        height: 56,
-        fontSize: 14,
+        height: 62,
+        fontSize: 16,
         enabled: !full,
         onClick: () => this.rest(),
       })
@@ -260,42 +260,42 @@ export class RunPlayScene extends Phaser.Scene {
     const py = 700;
     const ph = 210;
 
-    c.add(bodyText(this, PAD, 580, '* LIVE FEED', 14, COLORS.gold).setOrigin(0, 0.5));
+    c.add(bodyText(this, PAD, 580, '* LIVE FEED', 17, COLORS.gold).setOrigin(0, 0.5));
     c.add(this.add.rectangle(cx, py, CONTENT_W, ph, COLORS.panelDark).setStrokeStyle(3, COLORS.border));
     c.add(this.add.rectangle(cx, py, CONTENT_W - 16, ph - 16, COLORS.grassDark).setStrokeStyle(2, 0x2c2319));
 
-    c.add(this.add.image(cx - 218, py - 18, 'tower').setDisplaySize(104, 104));
-    c.add(this.add.image(cx + 214, py + 6, 'barracks').setDisplaySize(130, 104));
-    c.add(this.add.sprite(cx - 150, py + 64, 'warriorBlue').setDisplaySize(70, 70).play('warriorBlue_idle'));
-    c.add(this.add.sprite(cx + 130, py + 70, 'warriorBlue').setDisplaySize(70, 70).play('warriorBlue_idle'));
+    c.add(this.add.image(cx - 300, py - 18, 'tower').setDisplaySize(112, 112));
+    c.add(this.add.image(cx + 296, py + 6, 'barracks').setDisplaySize(140, 112));
+    c.add(this.add.sprite(cx - 210, py + 64, 'warriorBlue').setDisplaySize(76, 76).play('warriorBlue_idle'));
+    c.add(this.add.sprite(cx + 190, py + 70, 'warriorBlue').setDisplaySize(76, 76).play('warriorBlue_idle'));
 
-    c.add(portrait(this, cx, py - 12, this.run.name, 96, COLORS.gold));
-    c.add(bodyText(this, cx, py + ph / 2 - 16, 'SECTOR 7G // TRAINING GROUND', 11, 0xcfe3a8).setAlpha(0.85));
+    c.add(portrait(this, cx, py - 12, this.run.name, 104, COLORS.gold));
+    c.add(bodyText(this, cx, py + ph / 2 - 18, 'SECTOR 7G // TRAINING GROUND', 13, 0xcfe3a8).setAlpha(0.85));
   }
 
   /* ---- 5. Tarjetas de entrenamiento (la apuesta) -------------- */
   private trainingCards(c: Phaser.GameObjects.Container): void {
     const cx = GAME_W / 2;
-    c.add(titleText(this, cx, 962, 'ENTRENAMIENTO', 14, COLORS.cream));
+    c.add(titleText(this, cx, 958, 'ENTRENAMIENTO', 17, COLORS.cream));
     const n = this.pendingConsejeros.size;
     c.add(
       bodyText(
         this,
         cx,
-        992,
+        990,
         n > 0 ? `${n} consejero(s) asignado(s) · toca una carta para entrenar` : 'toca un consejero para asignarlo · luego una carta',
-        12,
+        15,
         COLORS.gold
       )
     );
     (['OFE', 'DEF', 'MAN'] as Affinity[]).forEach((choice, j) => {
-      c.add(this.statCard(choice, cx + (j - 1) * 214, 1130));
+      c.add(this.statCard(choice, cx + (j - 1) * 248, 1134));
     });
   }
 
   private statCard(choice: Affinity, x: number, y: number): Phaser.GameObjects.Container {
-    const W = 200;
-    const H = 222;
+    const W = 236;
+    const H = 236;
     const pal = STAT_PALETTE[choice];
     const pv = previewTurn(this.run.advisors, choice, this.energy, [...this.pendingConsejeros]);
     const risky = pv.successPct < 0.7;
@@ -306,15 +306,15 @@ export class RunPlayScene extends Phaser.Scene {
     const top = this.add.rectangle(0, -H / 2 + 4, W - 8, 5, pal.top);
     const bottom = this.add.rectangle(0, H / 2 - 5, W - 8, 6, pal.edge);
 
-    const name = titleText(this, 0, -82, choice, 22, pal.text);
-    const val = titleText(this, 0, -36, String(this.stats[STAT_KEY[choice]]), 28, pal.text);
-    const gain = bodyText(this, 0, 6, `+${pv.normalGain}  (✦+${pv.critGain})`, 15, pal.text);
+    const name = titleText(this, 0, -88, choice, 26, pal.text);
+    const val = titleText(this, 0, -40, String(this.stats[STAT_KEY[choice]]), 32, pal.text);
+    const gain = bodyText(this, 0, 8, `+${pv.normalGain}  (✦+${pv.critGain})`, 17, pal.text);
     const odds = bodyText(
       this,
       0,
-      36,
+      40,
       `✓${Math.round(pv.successPct * 100)}%   ✦${Math.round(pv.critPct * 100)}%`,
-      13,
+      16,
       risky ? COLORS.gold : pal.text
     );
     // Lectura del dado efectivo (rango de caras tras los modificadores).
@@ -323,8 +323,8 @@ export class RunPlayScene extends Phaser.Scene {
       pv.roll.dice.length > 1
         ? `🎲x${pv.roll.dice.length} ${die[0]}-${die[die.length - 1]}`
         : `🎲 ${die[0]}-${die[die.length - 1]}`;
-    const dieTxt = bodyText(this, 0, 62, dieLabel, 12, pal.text).setAlpha(0.9);
-    const cost = bodyText(this, 0, 86, `⚡ -${pv.energyCost} energía`, 12, pal.text).setAlpha(0.85);
+    const dieTxt = bodyText(this, 0, 70, dieLabel, 14, pal.text).setAlpha(0.9);
+    const cost = bodyText(this, 0, 96, `⚡ -${pv.energyCost} energía`, 14, pal.text).setAlpha(0.85);
 
     const press = this.add.container(0, 0, [body, top, bottom, name, val, gain, odds, dieTxt, cost]);
     card.add([shadow, press]);
@@ -355,27 +355,27 @@ export class RunPlayScene extends Phaser.Scene {
     const cx = GAME_W / 2;
     const ev = eventForTurn(this.run.seed, this.turn);
 
-    c.add(titleText(this, cx, 974, '⚡ EVENTO', 16, COLORS.gold));
-    c.add(retroPanel(this, cx, 1058, CONTENT_W, 120, COLORS.card));
-    c.add(titleText(this, cx, 1018, ev.name, 16, COLORS.ink));
+    c.add(titleText(this, cx, 972, '⚡ EVENTO', 18, COLORS.gold));
+    c.add(retroPanel(this, cx, 1056, CONTENT_W, 124, COLORS.card));
+    c.add(titleText(this, cx, 1014, ev.name, 18, COLORS.ink));
     c.add(
-      bodyText(this, cx, 1066, ev.description, 13, COLORS.ink).setWordWrapWidth(CONTENT_W - 60).setAlign('center')
+      bodyText(this, cx, 1064, ev.description, 15, COLORS.ink).setWordWrapWidth(CONTENT_W - 70).setAlign('center')
     );
 
     c.add(
       retroButton(this, cx, 1150, ev.branches[0].label, {
         width: CONTENT_W,
-        height: 56,
-        fontSize: 14,
+        height: 60,
+        fontSize: 16,
         onClick: () => this.chooseEvent(0),
       })
     );
     c.add(
-      retroButton(this, cx, 1214, ev.branches[1].label, {
+      retroButton(this, cx, 1216, ev.branches[1].label, {
         variant: 'grey',
         width: CONTENT_W,
-        height: 56,
-        fontSize: 14,
+        height: 60,
+        fontSize: 16,
         onClick: () => this.chooseEvent(1),
       })
     );
@@ -384,18 +384,18 @@ export class RunPlayScene extends Phaser.Scene {
   /* ---- Estado final: acuñar ------------------------------------ */
   private completion(c: Phaser.GameObjects.Container): void {
     const cx = GAME_W / 2;
-    c.add(titleText(this, cx, 1000, 'ENTRENAMIENTO COMPLETO', 18, COLORS.gold));
+    c.add(titleText(this, cx, 996, 'ENTRENAMIENTO COMPLETO', 20, COLORS.gold));
     c.add(
-      bodyText(this, cx, 1052, 'Tu recluta terminó la campaña. Acuña la unidad\ninmutable para enviarla al combate.', 14, COLORS.cream).setAlign(
+      bodyText(this, cx, 1050, 'Tu recluta terminó la campaña. Acuña la unidad\ninmutable para enviarla al combate.', 16, COLORS.cream).setAlign(
         'center'
       )
     );
-    c.add(titleText(this, cx, 1110, `PODER  ${calculatePower(this.stats)}`, 18, COLORS.cream));
+    c.add(titleText(this, cx, 1112, `PODER  ${calculatePower(this.stats)}`, 22, COLORS.cream));
     c.add(
-      retroButton(this, cx, 1196, '🎖️ ACUÑAR GENERAL', {
+      retroButton(this, cx, 1200, '🎖️ ACUÑAR GENERAL', {
         width: CONTENT_W,
-        height: 84,
-        fontSize: 18,
+        height: 88,
+        fontSize: 20,
         onClick: () => this.submit(),
       })
     );
@@ -503,8 +503,8 @@ export class RunPlayScene extends Phaser.Scene {
   private showTrainFeedback(tr: TurnResult): void {
     if (tr.kind !== 'train' || !tr.choice) return;
     const idx = (['OFE', 'DEF', 'MAN'] as Affinity[]).indexOf(tr.choice);
-    const x = GAME_W / 2 + (idx - 1) * 214;
-    const y = 1010;
+    const x = GAME_W / 2 + (idx - 1) * 248;
+    const y = 1014;
     if (tr.outcome === 'fail') {
       floatingGain(this, x, y, '✗ FALLO', COLORS.danger, 24);
       outcomeBanner(this, '✗ ENTRENAMIENTO FALLIDO', COLORS.danger, true);

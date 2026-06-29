@@ -299,7 +299,8 @@ export function retroPanel(
   return container;
 }
 
-/** Cabecera de subpantalla: botón volver + título centrado. */
+/** Cabecera de subpantalla: barra de título granate (estilo maqueta) con el
+ *  título centrado y un botón compacto de volver superpuesto a la izquierda. */
 export function screenTopbar(
   scene: Scene,
   title: string,
@@ -307,15 +308,18 @@ export function screenTopbar(
 ): Phaser.GameObjects.Container {
   const w = scene.scale.width;
   const container = scene.add.container(0, 0);
-  const back = retroButton(scene, PAD + 78, 52, '< VOLVER', {
+  const barW = w - PAD * 2;
+  // Barra granate full-width con el título centrado en grande.
+  const bar = headerBar(scene, w / 2, 56, barW, title, 20);
+  // Botón de volver compacto pegado al borde izquierdo de la barra.
+  const back = retroButton(scene, PAD + 40, 56, '‹', {
     variant: 'grey',
-    fontSize: 13,
-    width: 156,
-    height: 56,
+    fontSize: 24,
+    width: 72,
+    height: 60,
     onClick: onBack,
   });
-  const titleTxt = titleText(scene, w / 2, 52, title.toUpperCase(), 17, COLORS.cream);
-  container.add([back, titleTxt]);
+  container.add([bar, back]);
   return container;
 }
 

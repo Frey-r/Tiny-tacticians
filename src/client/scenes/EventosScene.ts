@@ -70,15 +70,15 @@ export class EventosScene extends Phaser.Scene {
     }
 
     const enemy = this.challenge.enemy;
-    c.add(bodyText(this, cx, 218, `Enemigo: ${enemy.name}`, 15, COLORS.ink));
+    c.add(bodyText(this, cx, 218, `Enemigo: ${enemy.name}`, 16, COLORS.ink));
     c.add(
-      bodyText(this, cx, 252, `Poder ${enemy.power} · OFE ${enemy.stats.ofe} / DEF ${enemy.stats.def} / MAN ${enemy.stats.man}`, 12, COLORS.ink)
+      bodyText(this, cx, 252, `Poder ${enemy.power} · OFE ${enemy.stats.ofe} / DEF ${enemy.stats.def} / MAN ${enemy.stats.man}`, 14, COLORS.ink)
     );
-    c.add(bodyText(this, cx, 286, `Modificador: ${this.challenge.modifier.name}`, 13, COLORS.ink));
+    c.add(bodyText(this, cx, 286, `Modificador: ${this.challenge.modifier.name}`, 14, COLORS.ink));
     c.add(
-      bodyText(this, cx, 318, this.challenge.modifier.description, 11, COLORS.ink).setWordWrapWidth(CONTENT_W - 60).setAlign('center')
+      bodyText(this, cx, 318, this.challenge.modifier.description, 13, COLORS.ink).setWordWrapWidth(CONTENT_W - 70).setAlign('center')
     );
-    c.add(bodyText(this, cx, 356, 'Premio: +100 oro · +5 pts · +1 contrato de consejero', 12, COLORS.gold));
+    c.add(bodyText(this, cx, 356, 'Premio: +100 oro · +5 pts · +1 contrato de consejero', 14, COLORS.gold));
 
     if (this.status.claimed) {
       c.add(bodyText(this, cx, 440, '✅ Recompensa de hoy reclamada.\n¡Vuelve mañana!', 14, COLORS.lime).setAlign('center'));
@@ -121,10 +121,11 @@ export class EventosScene extends Phaser.Scene {
   }
 
   private special(x: number, y: number, title: string, desc: string, btn: string, onClick: () => void): void {
-    retroPanel(this, x, y, CONTENT_W, 110, COLORS.card2);
-    bodyText(this, PAD + 24, y - 20, title, 14, COLORS.ink).setOrigin(0, 0.5);
-    bodyText(this, PAD + 24, y + 10, desc, 12, COLORS.ink).setOrigin(0, 0.5).setWordWrapWidth(360);
-    retroButton(this, x + 170, y, btn, { width: 200, height: 64, fontSize: 13, onClick });
+    retroPanel(this, x, y, CONTENT_W, 118, COLORS.card2);
+    bodyText(this, PAD + 28, y - 22, title, 16, COLORS.ink).setOrigin(0, 0.5);
+    bodyText(this, PAD + 28, y + 12, desc, 14, COLORS.ink).setOrigin(0, 0.5).setWordWrapWidth(470);
+    // Botón pegado al borde derecho del panel (antes con offset fijo para 720).
+    retroButton(this, x + CONTENT_W / 2 - 130, y, btn, { width: 220, height: 70, fontSize: 15, onClick });
   }
 
   private async playDaily(): Promise<void> {
