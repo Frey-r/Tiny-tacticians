@@ -1,13 +1,21 @@
 /* ============================================================
-   Catálogo de consejeros — definiciones canónicas (identidad).
+   Catálogo de consejeros (servidor) — identidad por usuario.
    El estado por usuario (`user:<id>:consejeros`) guarda solo
-   `advisorId -> nivel`; la identidad (nombre/afinidad) vive aquí.
-   Así, conceder un consejero nuevo (p. ej. recompensa diaria)
-   solo requiere escribir su id con nivel 1: la identidad se
-   resuelve desde este catálogo.
+   `advisorId -> nivel`; la identidad (nombre/afinidad/skill) vive
+   en el catálogo COMPARTIDO `shared/sim/consejeroCatalog.ts`, del
+   que este módulo deriva su vista para el servidor.
+
+   Conceder un consejero nuevo (recompensa diaria / contrato) solo
+   requiere escribir su id con nivel 1: la identidad se resuelve
+   desde el catálogo. Ahora son 40 consejeros (3 iniciales + 37
+   adquiribles), ver decisions/0012.
    ============================================================ */
 import { Affinity } from '../../shared/types/index.ts';
-import { CONSEJERO_ABILITIES } from '../../shared/sim/consejeroAbilities.ts';
+import {
+  CONSEJERO_CATALOG,
+  COMBAT_ABILITIES,
+  DEFAULT_CONSEJERO_IDS,
+} from '../../shared/sim/consejeroCatalog.ts';
 
 export interface AdvisorDef {
   id: string;
@@ -18,38 +26,30 @@ export interface AdvisorDef {
   abilityKey: string;
 }
 
-/** Construye una definición resolviendo su habilidad desde la tabla compartida. */
-function def(id: string, name: string, affinity: Affinity): AdvisorDef {
-  const ab = CONSEJERO_ABILITIES[id];
-  return { id, name, affinity, ability: ab?.ability ?? '', abilityKey: ab?.abilityKey ?? '' };
-}
+/** Vista de identidad para el servidor, derivada del catálogo compartido. */
+const ALL_ADVISORS: AdvisorDef[] = CONSEJERO_CATALOG.map((d) => ({
+  id: d.id,
+  name: d.name,
+  affinity: d.affinity,
+  ability: COMBAT_ABILITIES[d.abilityKey]?.ability ?? '',
+  abilityKey: d.abilityKey,
+}));
 
-// Los 3 consejeros con los que arranca todo usuario nuevo.
-export const DEFAULT_CONSEJEROS: AdvisorDef[] = [
-  def('c1', 'Consejero de Guerra', 'OFE'),
-  def('c2', 'Albañil del Muro', 'DEF'),
-  def('c3', 'Maestre de Cuentas', 'MAN'),
-];
+const DEFAULT_IDS = new Set<string>(DEFAULT_CONSEJERO_IDS);
 
-// Pool de consejeros que se pueden adquirir (p. ej. tirada sembrada del reto diario).
-export const ACQUIRABLE_CONSEJEROS: AdvisorDef[] = [
-  def('c4', 'Capitán de la Vanguardia', 'OFE'),
-  def('c5', 'Centinela de la Puerta', 'DEF'),
-  def('c6', 'Cartógrafa Real', 'MAN'),
-  def('c7', 'Verdugo de Asedios', 'OFE'),
-  def('c8', 'Guardiana del Foso', 'DEF'),
-  def('c9', 'Espía de la Corte', 'MAN'),
-];
+// Los consejeros con los que arranca todo usuario nuevo (c1, c2, c3).
+export const DEFAULT_CONSEJEROS: AdvisorDef[] = ALL_ADVISORS.filter((a) => DEFAULT_IDS.has(a.id));
+
+// Pool de consejeros adquiribles (contrato / recompensa diaria): el resto del catálogo.
+export const ACQUIRABLE_CONSEJEROS: AdvisorDef[] = ALL_ADVISORS.filter((a) => !DEFAULT_IDS.has(a.id));
 
 // Mapa id -> definición, para resolver identidad en O(1).
 export const ADVISOR_CATALOG: Record<string, AdvisorDef> = Object.fromEntries(
-  [...DEFAULT_CONSEJEROS, ...ACQUIRABLE_CONSEJEROS].map((a) => [a.id, a])
+  ALL_ADVISORS.map((a) => [a.id, a])
 );
 
 // Orden estable de presentación (índice por id en el catálogo).
-const CATALOG_ORDER: Record<string, number> = Object.fromEntries(
-  [...DEFAULT_CONSEJEROS, ...ACQUIRABLE_CONSEJEROS].map((a, i) => [a.id, i])
-);
+const CATALOG_ORDER: Record<string, number> = Object.fromEntries(ALL_ADVISORS.map((a, i) => [a.id, i]));
 
 export function advisorOrder(id: string): number {
   return CATALOG_ORDER[id] ?? Number.MAX_SAFE_INTEGER;

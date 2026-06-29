@@ -14,7 +14,7 @@ function buildLog(seed: string, choice: Affinity = 'OFE'): ActionLog {
   const evt = eventTurns(seed);
   const log: ActionLog = [];
   for (let i = 0; i < RUN_TURNS; i++) {
-    log.push(evt.has(i) ? { kind: 'event', branch: 0 } : { kind: 'train', choice, consejeroIds: [] });
+    log.push(evt.has(i) ? { kind: 'event', branch: 0 } : { kind: 'train', choice });
   }
   return log;
 }
@@ -62,12 +62,13 @@ describe('stepRun (shared turn engine)', () => {
   });
 
   it('previewTurn returns sane odds without consuming the run PRNG', () => {
-    const pv = previewTurn(mockDeck, 'OFE', 100);
+    const seed = 'preview_seed';
+    const pv = previewTurn(seed, mockDeck, 'OFE', 100, 0);
     expect(pv.successPct).toBeGreaterThan(0);
     expect(pv.successPct).toBeLessThanOrEqual(1);
     expect(pv.critGain).toBeGreaterThanOrEqual(pv.normalGain);
-    // Con menos energía, baja la probabilidad de éxito.
-    const low = previewTurn(mockDeck, 'OFE', 0);
+    // Mismo seed+turno => mismo set activo; con menos energía baja la probabilidad de éxito.
+    const low = previewTurn(seed, mockDeck, 'OFE', 0, 0);
     expect(low.successPct).toBeLessThan(pv.successPct);
   });
 });

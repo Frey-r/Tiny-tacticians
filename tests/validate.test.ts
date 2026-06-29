@@ -11,38 +11,46 @@ const deck: DeckSnapshot = [
 
 const seed = 'val_seed';
 
-function logWithTrain(train: RunAction): ActionLog {
+function logWith(nonEvent: RunAction): ActionLog {
   const evt = eventTurns(seed);
   const log: ActionLog = [];
   for (let i = 0; i < RUN_TURNS; i++) {
-    log.push(evt.has(i) ? { kind: 'event', branch: 0 } : { ...train });
+    log.push(evt.has(i) ? { kind: 'event', branch: 0 } : { ...nonEvent });
   }
   return log;
 }
 
-describe('validateActionLog — consejero assignment', () => {
-  it('accepts empty consejeroIds (entrenamiento sin asistencia)', () => {
-    const r = validateActionLog(seed, deck, logWithTrain({ kind: 'train', choice: 'OFE', consejeroIds: [] }));
+describe('validateActionLog — modelo de activación aleatoria (sin asignación)', () => {
+  it('accepts a train action carrying only an affinity (no consejeroIds)', () => {
+    const r = validateActionLog(seed, deck, logWith({ kind: 'train', choice: 'OFE' }));
     expect(r.isValid).toBe(true);
   });
 
-  it('accepts a valid subset of the deck', () => {
-    const r = validateActionLog(seed, deck, logWithTrain({ kind: 'train', choice: 'OFE', consejeroIds: ['c1', 'c2'] }));
+  it('accepts rest actions on non-event turns', () => {
+    const r = validateActionLog(seed, deck, logWith({ kind: 'rest' }));
     expect(r.isValid).toBe(true);
   });
 
-  it('rejects a train action missing consejeroIds (logs v1)', () => {
-    const r = validateActionLog(seed, deck, logWithTrain({ kind: 'train', choice: 'OFE' } as unknown as RunAction));
+  it('rejects an invalid affinity', () => {
+    const r = validateActionLog(
+      seed,
+      deck,
+      logWith({ kind: 'train', choice: 'XXX' } as unknown as RunAction)
+    );
     expect(r.isValid).toBe(false);
   });
 
-  it('rejects a consejero id not in the deck (anti-cheat)', () => {
-    const r = validateActionLog(seed, deck, logWithTrain({ kind: 'train', choice: 'OFE', consejeroIds: ['c9'] }));
+  it('rejects a non-event action on an event turn', () => {
+    const evtIdx = [...eventTurns(seed)][0];
+    const log = logWith({ kind: 'train', choice: 'OFE' });
+    log[evtIdx] = { kind: 'train', choice: 'OFE' };
+    const r = validateActionLog(seed, deck, log);
     expect(r.isValid).toBe(false);
   });
 
-  it('rejects duplicate consejero ids in one training', () => {
-    const r = validateActionLog(seed, deck, logWithTrain({ kind: 'train', choice: 'OFE', consejeroIds: ['c1', 'c1'] }));
+  it('rejects a log longer than RUN_TURNS', () => {
+    const log = [...logWith({ kind: 'train', choice: 'OFE' }), { kind: 'rest' as const }];
+    const r = validateActionLog(seed, deck, log);
     expect(r.isValid).toBe(false);
   });
 });

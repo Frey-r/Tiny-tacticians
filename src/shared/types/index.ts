@@ -33,15 +33,14 @@ export type DeckSnapshot = Consejero[];
 
 /**
  * Decisión de un turno de la run. Unión discriminada por `kind`:
- * - `train`: entrena una afinidad (el asesor lo deriva el servidor).
+ * - `train`: entrena una afinidad. Los consejeros que ASISTEN ya NO se eligen
+ *   por turno: se activan al azar (determinista por seed+turno; ver decisions/0012),
+ *   así que la acción solo lleva la afinidad. El servidor re-deriva el set activo.
  * - `rest`:  recupera energía a cambio del turno.
  * - `event`: resuelve un turno de evento eligiendo una de las 2 ramas.
- * El `train` lleva `consejeroIds`: los consejeros que el jugador asigna a ESE
- * entrenamiento (subconjunto del deck, posiblemente vacío). Viajan en el actionLog
- * porque afectan la tirada; el servidor los valida contra el deck autoritativo.
  */
 export type RunAction =
-  | { kind: 'train'; choice: Affinity; consejeroIds: string[] }
+  | { kind: 'train'; choice: Affinity }
   | { kind: 'rest' }
   | { kind: 'event'; branch: 0 | 1 };
 
@@ -74,6 +73,10 @@ export interface TurnResult {
   dice?: { faces: number[]; keptFace: number; band: OutcomeBand; roll: DiceRoll };
   /** Bond ("afinidad") ganado por cada consejero ESTE turno (solo en train). */
   bondDeltas?: Record<string, number>;
+  /** Ids de los consejeros que se ACTIVARON este turno de entrenamiento. */
+  activeIds?: string[];
+  /** Efectos de run que detonaron este turno (consejero activo con runEffect). */
+  advisorProcs?: { id: string; effectId: string; label: string }[];
 }
 
 /** Estado completo re-derivado de una run desde seed + deck + actionLog. */

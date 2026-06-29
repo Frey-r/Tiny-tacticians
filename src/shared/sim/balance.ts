@@ -8,10 +8,10 @@ import {
   shiftThresholds,
   addDice,
 } from './dice.ts';
-import { CONSEJERO_ABILITIES } from './consejeroAbilities.ts';
+import { consejeroDef, RUN_EFFECTS, RunEffectId } from './consejeroCatalog.ts';
 
-/** Versión de simulación. Bump rompe actionLogs/replays previos (ver decisions/0011). */
-export const SIM_VERSION = 2;
+/** Versión de simulación. Bump rompe actionLogs/replays previos (ver decisions/0012). */
+export const SIM_VERSION = 3;
 
 export const BASE_STAT = 10;
 export const MAX_STAT = 100;
@@ -42,10 +42,41 @@ export const BOND_AFFINITY_BONUS = 2; // extra si su afinidad coincide con la st
 export const BOND_THRESHOLD = 6; // cruzarlo desbloquea la habilidad de combate
 export const CONSEJERO_PROC_FACES = 1 / 6; // probabilidad de proc en combate
 
-/** id de consejero -> nombre de su habilidad desbloqueable (derivado del catálogo). */
-export const CONSEJERO_ABILITY: Record<string, string> = Object.fromEntries(
-  Object.entries(CONSEJERO_ABILITIES).map(([id, a]) => [id, a.ability])
-);
+/** id de consejero -> nombre de su habilidad desbloqueable (fuente: catálogo). */
+export { CONSEJERO_ABILITY } from './consejeroCatalog.ts';
+
+/* ---- Activación aleatoria de consejeros por turno (ver decisions/0012) ----
+   Los consejeros del loadout YA NO se asignan a mano: cada turno de
+   entrenamiento se activan al azar con una probabilidad que sube de forma
+   lineal a lo largo de la run, sesgada por consejero. Determinista: sale de
+   un PRNG DERIVADO (`seed:act:<turno>`), así no consume el stream del dado y
+   cliente/servidor/validación coinciden. */
+export const ACTIVATION_MIN = 0.05;
+export const ACTIVATION_MAX = 0.75;
+
+/** Rampa base por progreso de la run (turno 0 → 5%, último turno → 75%). */
+export function activationRamp(turn: number): number {
+  if (RUN_TURNS <= 1) return ACTIVATION_MAX;
+  const t = Math.max(0, Math.min(1, turn / (RUN_TURNS - 1)));
+  return ACTIVATION_MIN + (ACTIVATION_MAX - ACTIVATION_MIN) * t;
+}
+
+/** Probabilidad de activación de UN consejero este turno (rampa + sesgo, acotada). */
+export function activationChance(c: Consejero, turn: number): number {
+  return Math.max(0.05, Math.min(0.95, activationRamp(turn) + consejeroDef(c.id).activationBias));
+}
+
+/** Subconjunto del deck que está ACTIVO este turno (0..deck.length). Determinista. */
+export function activeAdvisorsForTurn(seed: string, deck: Consejero[], turn: number): Consejero[] {
+  const p = new PRNG(`${seed}:act:${turn}`);
+  // Una tirada por consejero en orden estable del deck → reproducible.
+  return deck.filter((c) => p.nextFloat() < activationChance(c, turn));
+}
+
+/** Stat secundaria que regala el arquetipo Intendente / efecto Botín en éxito. */
+export function secondaryStatFor(choice: Affinity): keyof GeneralStats {
+  return choice === 'MAN' ? 'def' : 'man';
+}
 
 export function calculatePower(stats: GeneralStats): number {
   return Math.floor(stats.ofe * 1.0 + stats.def * 1.0 + stats.man * 1.2);
@@ -99,22 +130,67 @@ export function participantsBestFor(participants: Consejero[], choice: Affinity)
   return candidates.reduce((best, a) => (a.level > best.level ? a : best), candidates[0]);
 }
 
-export interface ConsejeroDieMod {
-  raiseFloor: number; // sube el piso del rango del dado (descarta caras bajas)
-  critDown: number; // baja critMin (hace el CRÍTICO más probable)
-  extraDie: boolean; // concede un dado de ventaja (keep-best)
+/* ---- Arquetipos de entrenamiento: cada estilo reforma el dado distinto ----
+   - maestro    polariza: +crítico y +fallo (alto riesgo / "closer").
+   - alquimista estabiliza: casi nunca falla pero BLOQUEA el crítico (cara máx).
+   - intendente eficiencia: dado casi neutro; reembolsa energía + stat secundaria. */
+export interface TrainMod {
+  raiseFloor: number; // sube el piso del rango (descarta caras bajas → menos FALLO)
+  critDown: number; // baja critMin (CRÍTICO más probable)
+  failUp: number; // sube failMax (FALLO más probable; <0 lo baja)
+  capTop: boolean; // bloquea la cara máxima (limita el CRÍTICO)
+  extraDie: boolean; // dado de ventaja (keep-best)
+  energyRefund: number; // energía devuelta este turno
+  secondaryGain: number; // +stat secundaria en éxito
 }
 
-/** Contribución de UN consejero a la tirada de entrenamiento. Off-afinidad no reforma. */
-export function consejeroDieMod(c: Consejero, choice: Affinity): ConsejeroDieMod {
-  if (c.affinity === choice) {
-    return {
-      raiseFloor: Math.max(0, Math.min(4, 1 + Math.floor(c.level / 3))),
-      critDown: c.level >= 6 ? 2 : c.level >= 3 ? 1 : 0,
-      extraDie: c.level >= 8,
-    };
+const ZERO_MOD: TrainMod = {
+  raiseFloor: 0,
+  critDown: 0,
+  failUp: 0,
+  capTop: false,
+  extraDie: false,
+  energyRefund: 0,
+  secondaryGain: 0,
+};
+
+/** Contribución de UN consejero a la tirada, según su arquetipo. Off-afinidad no reforma. */
+export function consejeroTrainMod(c: Consejero, choice: Affinity): TrainMod {
+  if (c.affinity !== choice) return ZERO_MOD;
+  const level = c.level;
+  switch (consejeroDef(c.id).trainStyle) {
+    case 'maestro':
+      return {
+        raiseFloor: 0,
+        critDown: 1 + (level >= 5 ? 1 : 0) + (level >= 9 ? 1 : 0),
+        failUp: 1,
+        capTop: false,
+        extraDie: level >= 8,
+        energyRefund: 0,
+        secondaryGain: 0,
+      };
+    case 'alquimista':
+      return {
+        raiseFloor: Math.min(4, 1 + Math.floor(level / 3)),
+        critDown: 0,
+        failUp: -1,
+        capTop: true,
+        extraDie: false,
+        energyRefund: 0,
+        secondaryGain: 0,
+      };
+    case 'intendente':
+    default:
+      return {
+        raiseFloor: Math.min(4, 1 + Math.floor(level / 4)),
+        critDown: level >= 6 ? 1 : 0,
+        failUp: 0,
+        capTop: false,
+        extraDie: false,
+        energyRefund: 4 + Math.floor(level / 2),
+        secondaryGain: 1 + Math.floor(level / 4),
+      };
   }
-  return { raiseFloor: 0, critDown: 0, extraDie: false };
 }
 
 /** Energía baja sube failMax (más caras pasan a FALLO). Entero 0..2. */
@@ -124,24 +200,62 @@ export function energyFailShift(energy: number): number {
   return Math.max(0, Math.min(2, Math.round(t * 2.5)));
 }
 
-/** Arma la tirada de un entrenamiento desde los consejeros asignados + energía. */
-export function buildTrainRoll(participants: Consejero[], choice: Affinity, energy: number): DiceRoll {
+/** Plan completo de un turno de entrenamiento: dado + efectos plegados (energía/secundaria/bond). */
+export interface TrainTurnPlan {
+  roll: DiceRoll;
+  energyRefund: number;
+  secondaryGain: number;
+  bondBonus: Record<string, number>;
+  procs: { id: string; effectId: RunEffectId; label: string }[];
+}
+
+/** Arma el turno desde los consejeros ACTIVOS: arquetipos reforman el dado, efectos de run se pliegan. */
+export function planTrainTurn(participants: Consejero[], choice: Affinity, energy: number): TrainTurnPlan {
   let totalFloor = 0;
   let totalCritDown = 0;
+  let totalFailUp = 0;
+  let capTop = false;
   let extra = 0;
+  let energyRefund = 0;
+  let secondaryGain = 0;
+  let reFailDelta = 0;
+  let reCritDelta = 0;
+  const bondBonus: Record<string, number> = {};
+  const procs: TrainTurnPlan['procs'] = [];
+
   for (const c of participants) {
-    const m = consejeroDieMod(c, choice);
+    const m = consejeroTrainMod(c, choice);
     totalFloor += m.raiseFloor;
     totalCritDown += m.critDown;
+    totalFailUp += m.failUp;
+    if (m.capTop) capTop = true;
     if (m.extraDie) extra += 1;
+    energyRefund += m.energyRefund;
+    secondaryGain += m.secondaryGain;
+
+    // Efecto de run del consejero (el diferenciador "qué detona en la run").
+    const effId = consejeroDef(c.id).runEffectId;
+    if (effId) {
+      const e = RUN_EFFECTS[effId];
+      reFailDelta += e.failMaxDelta ?? 0;
+      reCritDelta += e.critMinDelta ?? 0;
+      energyRefund += e.energyRefund ?? 0;
+      secondaryGain += e.secondaryGain ?? 0;
+      if (e.bondBonus) bondBonus[c.id] = (bondBonus[c.id] ?? 0) + e.bondBonus;
+      procs.push({ id: c.id, effectId: effId, label: e.label });
+    }
   }
   totalFloor = Math.min(4, totalFloor); // nunca colapsa el dado por debajo de 2 caras
 
   let roll = baseRoll({ failMax: BASE_FAIL_MAX, critMin: BASE_CRIT_MIN });
   if (totalFloor > 0) roll = restrictRange(roll, 1 + totalFloor, 6);
-  roll = shiftThresholds(roll, energyFailShift(energy), -totalCritDown);
+  if (capTop) roll = restrictRange(roll, 1, 5); // bloquea la cara 6 (limita CRÍTICO)
+  const dFailMax = energyFailShift(energy) + totalFailUp + reFailDelta;
+  const dCritMin = -totalCritDown + reCritDelta;
+  roll = shiftThresholds(roll, dFailMax, dCritMin);
   if (extra > 0) roll = addDice(roll, extra, 'best');
-  return roll;
+
+  return { roll, energyRefund, secondaryGain, bondBonus, procs };
 }
 
 /** Tirada de una rama de evento con probabilidad: éxito = banda CRÍTICO. */

@@ -8,9 +8,11 @@
    DERIVADA (se recalcula aquí, no se guarda).
 
    Cada entrenamiento y cada rama de evento con probabilidad se
-   resuelve tirando dados. Los consejeros ASIGNADOS al entrenamiento
-   (action.consejeroIds) reforman el dado y acumulan "afinidad" (bond);
-   al cruzar el umbral desbloquean su habilidad de combate.
+   resuelve tirando dados. Los consejeros que ASISTEN se activan al
+   azar cada turno (determinista por seed+turno, ver decisions/0012):
+   reforman el dado según su arquetipo, detonan efectos de run y
+   acumulan "afinidad" (bond); al cruzar el umbral desbloquean su
+   habilidad de combate.
 
    Devuelve además un `TurnResult[]` (con las caras del dado) que
    alimenta el feedback por acción del cliente — determinismo y
@@ -37,7 +39,9 @@ import {
   BOND_THRESHOLD,
   CONSEJERO_ABILITY,
   baseGain,
-  buildTrainRoll,
+  planTrainTurn,
+  activeAdvisorsForTurn,
+  secondaryStatFor,
   buildEventRoll,
   gainForBand,
   bondForParticipation,
@@ -76,7 +80,6 @@ export function stepRun(seed: string, deck: Consejero[], actionLog: ActionLog): 
   let energy = ENERGY_MAX;
   const evtSet = eventTurns(seed);
   const turns: TurnResult[] = [];
-  const deckById = new Map(deck.map((c) => [c.id, c]));
   const bond: Record<string, number> = {};
   for (const c of deck) bond[c.id] = 0;
 
@@ -118,28 +121,28 @@ export function stepRun(seed: string, deck: Consejero[], actionLog: ActionLog): 
       continue;
     }
 
-    // --- Entrenamiento: la apuesta se resuelve con DADOS ---
+    // --- Entrenamiento: los consejeros ASISTEN al azar (determinista) y se resuelve con DADOS ---
     const choice: Affinity = action.kind === 'train' ? action.choice : 'OFE';
-    const ids = action.kind === 'train' ? action.consejeroIds : [];
-    const participants = ids
-      .map((id) => deckById.get(id))
-      .filter((c): c is Consejero => !!c);
+    const participants = activeAdvisorsForTurn(seed, deck, t);
+    const plan = planTrainTurn(participants, choice, energyBefore); // el riesgo usa la energía ANTES de pagar
 
-    const roll = buildTrainRoll(participants, choice, energyBefore); // el riesgo usa la energía ANTES de pagar
-    energy = Math.max(0, energy - TRAIN_COST);
-    const outcome = rollDice(prng, roll);
+    energy = Math.min(ENERGY_MAX, Math.max(0, energy - TRAIN_COST + plan.energyRefund));
+    const outcome = rollDice(prng, plan.roll);
     const base = baseGain(participantsBestFor(participants, choice), choice);
     const gain = gainForBand(outcome.band, base);
 
-    if (choice === 'OFE') stats.ofe += gain;
-    else if (choice === 'DEF') stats.def += gain;
-    else stats.man += gain;
+    const primary: keyof GeneralStats = choice === 'OFE' ? 'ofe' : choice === 'DEF' ? 'def' : 'man';
+    stats[primary] += gain;
+    // Stat secundaria (arquetipo Intendente / efecto Botín): solo en éxito (NORMAL o CRÍTICO).
+    if (outcome.band !== 'FALLO' && plan.secondaryGain > 0) {
+      stats[secondaryStatFor(choice)] += plan.secondaryGain;
+    }
     clampStats(stats);
 
-    // Bond ("afinidad") por cada consejero que participó.
+    // Bond por cada consejero ACTIVO (+ bonus de efecto de run, p. ej. Lealtad Fervorosa).
     const bondDeltas: Record<string, number> = {};
     for (const c of participants) {
-      const d = bondForParticipation(c, choice);
+      const d = bondForParticipation(c, choice) + (plan.bondBonus[c.id] ?? 0);
       bond[c.id] = (bond[c.id] ?? 0) + d;
       bondDeltas[c.id] = (bondDeltas[c.id] ?? 0) + d;
     }
@@ -154,6 +157,8 @@ export function stepRun(seed: string, deck: Consejero[], actionLog: ActionLog): 
       energyAfter: energy,
       dice: { faces: outcome.faces, keptFace: outcome.keptFace, band: outcome.band, roll: outcome.roll },
       bondDeltas,
+      activeIds: participants.map((c) => c.id),
+      advisorProcs: plan.procs.map((p) => ({ id: p.id, effectId: p.effectId, label: p.label })),
     });
   }
 
@@ -171,35 +176,42 @@ export function stepRun(seed: string, deck: Consejero[], actionLog: ActionLog): 
 
 /* ---- Preview (sólo display, NO consume el PRNG de la run) -------- */
 export interface TrainPreview {
-  energyCost: number;
+  energyCost: number; // coste NETO (TRAIN_COST menos reembolso de los activos)
   successPct: number; // 1 - probabilidad de fallo
   critPct: number;
   failPct: number;
   normalGain: number;
   critGain: number;
+  secondaryGain: number; // +stat secundaria en éxito (0 si ninguno activo lo otorga)
   roll: DiceRoll; // spec efectivo del dado para dibujarlo
+  activeIds: string[]; // consejeros que ASISTEN este turno (set activo determinista)
 }
 
-/** Lo que el jugador ve en una carta ANTES de comprometerse: la lectura de la apuesta. */
+/**
+ * Lo que el jugador ve en una carta ANTES de comprometerse: la lectura de la apuesta
+ * para ESTE turno. El set de consejeros activos es determinista (seed+turno), así que
+ * el preview muestra exactamente quién asiste; solo el resultado del dado es aleatorio.
+ */
 export function previewTurn(
+  seed: string,
   deck: Consejero[],
   choice: Affinity,
   energy: number,
-  consejeroIds: string[] = []
+  turn: number
 ): TrainPreview {
-  const participants = consejeroIds
-    .map((id) => deck.find((c) => c.id === id))
-    .filter((c): c is Consejero => !!c);
-  const roll = buildTrainRoll(participants, choice, energy);
-  const odds = rollOdds(roll);
+  const participants = activeAdvisorsForTurn(seed, deck, turn);
+  const plan = planTrainTurn(participants, choice, energy);
+  const odds = rollOdds(plan.roll);
   const base = baseGain(participantsBestFor(participants, choice), choice);
   return {
-    energyCost: TRAIN_COST,
+    energyCost: TRAIN_COST - plan.energyRefund,
     successPct: 1 - odds.failPct,
     critPct: odds.critPct,
     failPct: odds.failPct,
     normalGain: gainForBand('NORMAL', base),
     critGain: gainForBand('CRITICO', base),
-    roll,
+    secondaryGain: plan.secondaryGain,
+    roll: plan.roll,
+    activeIds: participants.map((c) => c.id),
   };
 }

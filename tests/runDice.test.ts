@@ -1,30 +1,31 @@
 import { describe, it, expect } from 'vitest';
 import { stepRun } from '../src/shared/sim/stepRun.ts';
 import { simulateRun } from '../src/shared/sim/simulateRun.ts';
-import { eventTurns, RUN_TURNS, BOND_THRESHOLD, SIM_VERSION } from '../src/shared/sim/balance.ts';
+import { eventTurns, RUN_TURNS, SIM_VERSION } from '../src/shared/sim/balance.ts';
 import { simulateBattle } from '../src/shared/sim/simulateBattle.ts';
-import { DeckSnapshot, ActionLog, General } from '../src/shared/types/index.ts';
+import { DeckSnapshot, ActionLog, Affinity, General } from '../src/shared/types/index.ts';
 
-// Deck con ids reales del catálogo (c1 OFE -> 'Lluvia de Flechas').
+// Deck con ids reales del catálogo (c1 OFE maestro -> 'Lluvia de Flechas').
 const deck: DeckSnapshot = [
   { id: 'c1', name: 'Consejero de Guerra', affinity: 'OFE', level: 5 },
   { id: 'c2', name: 'Albañil del Muro', affinity: 'DEF', level: 3 },
   { id: 'c3', name: 'Maestre de Cuentas', affinity: 'MAN', level: 2 },
 ];
 
-function assignedLog(seed: string, ids: string[]): ActionLog {
+/** Log válido: eventos en los turnos del seed, entrena `choice` en el resto. */
+function trainLog(seed: string, choice: Affinity = 'OFE'): ActionLog {
   const evt = eventTurns(seed);
   const log: ActionLog = [];
   for (let i = 0; i < RUN_TURNS; i++) {
-    log.push(evt.has(i) ? { kind: 'event', branch: 0 } : { kind: 'train', choice: 'OFE', consejeroIds: ids });
+    log.push(evt.has(i) ? { kind: 'event', branch: 0 } : { kind: 'train', choice });
   }
   return log;
 }
 
-describe('stepRun — dados, bond y habilidades', () => {
+describe('stepRun — activación aleatoria, bond y dados', () => {
   it('is deterministic across bond, abilities and dice faces', () => {
     const seed = 'det_bond';
-    const log = assignedLog(seed, ['c1']);
+    const log = trainLog(seed, 'OFE');
     const a = stepRun(seed, deck, log);
     const b = stepRun(seed, deck, log);
     expect(a.bond).toEqual(b.bond);
@@ -32,36 +33,33 @@ describe('stepRun — dados, bond y habilidades', () => {
     expect(a.turns.map((t) => t.dice?.faces)).toEqual(b.turns.map((t) => t.dice?.faces));
   });
 
-  it('accrues bond and unlocks the consejero ability past the threshold', () => {
-    const seed = 'bond_unlock';
-    const res = stepRun(seed, deck, assignedLog(seed, ['c1']));
-    expect(res.bond['c1']).toBeGreaterThanOrEqual(BOND_THRESHOLD);
-    expect(res.unlockedAbilities).toContain('Lluvia de Flechas');
+  it('an on-affinity advisor accrues bond and can unlock its ability over the run', () => {
+    let unlocked = false;
+    let anyBond = false;
+    for (let i = 0; i < 30 && !unlocked; i++) {
+      const seed = `unlock_${i}`;
+      const res = stepRun(seed, deck, trainLog(seed, 'OFE'));
+      if ((res.bond['c1'] ?? 0) > 0) anyBond = true;
+      if (res.unlockedAbilities.includes('Lluvia de Flechas')) unlocked = true;
+    }
+    expect(anyBond).toBe(true);
+    expect(unlocked).toBe(true);
   });
 
-  it('does not unlock when a consejero barely participates', () => {
-    const seed = 'bond_low';
-    const evt = eventTurns(seed);
-    const log: ActionLog = [];
-    let used = false;
-    for (let i = 0; i < RUN_TURNS; i++) {
-      if (evt.has(i)) {
-        log.push({ kind: 'event', branch: 0 });
-      } else if (!used) {
-        log.push({ kind: 'train', choice: 'OFE', consejeroIds: ['c1'] });
-        used = true;
-      } else {
-        log.push({ kind: 'train', choice: 'OFE', consejeroIds: [] });
+  it('reports a deterministic active set (subset of the deck) on every training turn', () => {
+    const seed = 'active_seed';
+    const res = stepRun(seed, deck, trainLog(seed, 'OFE'));
+    for (const t of res.turns) {
+      if (t.kind === 'train') {
+        expect(Array.isArray(t.activeIds)).toBe(true);
+        for (const id of t.activeIds!) expect(['c1', 'c2', 'c3']).toContain(id);
       }
     }
-    const res = stepRun(seed, deck, log);
-    expect(res.bond['c1']).toBeLessThan(BOND_THRESHOLD);
-    expect(res.unlockedAbilities).not.toContain('Lluvia de Flechas');
   });
 
   it('records dice on every training turn', () => {
     const seed = 'faces_present';
-    const res = stepRun(seed, deck, assignedLog(seed, ['c1']));
+    const res = stepRun(seed, deck, trainLog(seed, 'OFE'));
     for (const t of res.turns) {
       if (t.kind === 'train') {
         expect(t.dice).toBeTruthy();
@@ -73,13 +71,13 @@ describe('stepRun — dados, bond y habilidades', () => {
 
 describe('stepRun — logs parciales (preview incremental del cliente)', () => {
   it('does not throw on a 1-action log and returns one turn', () => {
-    const res = stepRun('partial_seed', deck, [{ kind: 'train', choice: 'OFE', consejeroIds: ['c1'] }]);
+    const res = stepRun('partial_seed', deck, [{ kind: 'train', choice: 'OFE' }]);
     expect(res.turns).toHaveLength(1);
   });
 
   it('simulates a growing prefix turn by turn', () => {
     const seed = 'prefix_seed';
-    const full = assignedLog(seed, ['c1']);
+    const full = trainLog(seed, 'OFE');
     for (let n = 1; n <= 5; n++) {
       const res = stepRun(seed, deck, full.slice(0, n));
       expect(res.turns).toHaveLength(n);
@@ -88,7 +86,7 @@ describe('stepRun — logs parciales (preview incremental del cliente)', () => {
 
   it('rejects a log longer than RUN_TURNS', () => {
     const seed = 'too_long';
-    const log = [...assignedLog(seed, []), { kind: 'rest' as const }];
+    const log = [...trainLog(seed, 'OFE'), { kind: 'rest' as const }];
     expect(() => stepRun(seed, deck, log)).toThrow();
   });
 });
@@ -96,16 +94,24 @@ describe('stepRun — logs parciales (preview incremental del cliente)', () => {
 describe('simulateRun — acuñación con habilidades de consejero', () => {
   it('requires a complete 16-turn log to mint', () => {
     const seed = 'incomplete';
-    expect(() => simulateRun(seed, deck, assignedLog(seed, []).slice(0, 10))).toThrow(
+    expect(() => simulateRun(seed, deck, trainLog(seed, 'OFE').slice(0, 10))).toThrow(
       `El actionLog debe tener exactamente ${RUN_TURNS} acciones.`
     );
   });
 
-  it('mints with SIM_VERSION and folds the unlocked ability into the general', () => {
-    const seed = 'mint_v2';
-    const g = simulateRun(seed, deck, assignedLog(seed, ['c1']), 'Tester');
-    expect(g.schemaVersion).toBe(SIM_VERSION);
-    expect(g.abilities).toContain('Lluvia de Flechas');
+  it('mints with SIM_VERSION and folds an unlocked consejero ability into the general', () => {
+    // Busca un seed donde c1 cruce el umbral de bond y verifica que se acuña su skill.
+    let minted: General | null = null;
+    for (let i = 0; i < 30 && !minted; i++) {
+      const seed = `mint_${i}`;
+      const res = stepRun(seed, deck, trainLog(seed, 'OFE'));
+      if (res.unlockedAbilities.includes('Lluvia de Flechas')) {
+        minted = simulateRun(seed, deck, trainLog(seed, 'OFE'), 'Tester');
+      }
+    }
+    expect(minted).not.toBeNull();
+    expect(minted!.schemaVersion).toBe(SIM_VERSION);
+    expect(minted!.abilities).toContain('Lluvia de Flechas');
   });
 });
 

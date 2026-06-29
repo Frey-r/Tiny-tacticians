@@ -109,9 +109,6 @@ export class HomeScene extends Phaser.Scene {
       if (Math.random() > 0.5) b.setFlipX(true);
     }
 
-    // Montones de oro a ambos lados del primer plano.
-    this.add.image(150, groundY + 80, 'goldResource').setOrigin(0.5, 1).setScale(0.85);
-    this.add.image(GAME_W - 150, groundY + 80, 'goldResource').setOrigin(0.5, 1).setScale(0.85);
 
     // Caballeros entrenando (sprites animados reales) en primer plano.
     this.add

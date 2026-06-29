@@ -40,6 +40,7 @@ import {
   isEventTurn,
   eventForTurn,
   calculatePower,
+  activeAdvisorsForTurn,
   BASE_STAT,
   ENERGY_MAX,
   RUN_TURNS,
@@ -82,7 +83,8 @@ export class RunPlayScene extends Phaser.Scene {
   private energy = ENERGY_MAX;
   private mood = 1.0;
   private bond: Record<string, number> = {};
-  private pendingConsejeros = new Set<string>();
+  /** Consejeros que ASISTEN este turno (set activo determinista por seed+turno). */
+  private activeThisTurn = new Set<string>();
   private busy = false;
   private dyn?: Phaser.GameObjects.Container;
   private roller?: DiceRoller;
@@ -99,7 +101,7 @@ export class RunPlayScene extends Phaser.Scene {
     this.energy = ENERGY_MAX;
     this.mood = 1.0;
     this.bond = {};
-    this.pendingConsejeros = new Set<string>();
+    this.activeThisTurn = new Set<string>();
     this.busy = false;
   }
 
@@ -116,6 +118,12 @@ export class RunPlayScene extends Phaser.Scene {
     this.roller = undefined;
     const c = this.add.container(0, 0);
     this.dyn = c;
+
+    // Set ACTIVO de este turno: determinista (seed+turno). Solo en turnos de entrenamiento.
+    const isTrain = this.turn < RUN_TURNS && !isEventTurn(this.run.seed, this.turn);
+    this.activeThisTurn = isTrain
+      ? new Set(activeAdvisorsForTurn(this.run.seed, this.run.advisors, this.turn).map((adv) => adv.id))
+      : new Set<string>();
 
     this.turnEnergyHeader(c);
     this.advisorDeck(c);
@@ -161,7 +169,12 @@ export class RunPlayScene extends Phaser.Scene {
   /* ---- 2. Estado de asesores (deck) ---------------------------- */
   private advisorDeck(c: Phaser.GameObjects.Container): void {
     c.add(bodyText(this, PAD, 300, 'ESTADO DE ASESORES', 17, COLORS.cream).setOrigin(0, 0.5));
-    c.add(bodyText(this, GAME_W - PAD, 300, '* ACTIVOS', 14, COLORS.gold).setOrigin(1, 0.5));
+    c.add(
+      bodyText(this, GAME_W - PAD, 300, `★ ${this.activeThisTurn.size}/${this.run.advisors.length} ACTIVOS`, 14, COLORS.gold).setOrigin(
+        1,
+        0.5
+      )
+    );
 
     // Dibuja exactamente los asesores del deck (no un 4º slot vacío).
     const advisors = this.run.advisors;
@@ -191,21 +204,27 @@ export class RunPlayScene extends Phaser.Scene {
       return slot;
     }
 
-    const selected = this.pendingConsejeros.has(adv.id);
+    // Activo este turno: el consejero ASISTE (determinista, no se elige a mano).
+    const active = this.activeThisTurn.has(adv.id);
     const bondVal = this.bond[adv.id] ?? 0;
     const unlocked = bondVal >= BOND_THRESHOLD;
-    const borderCol = selected ? COLORS.gold : unlocked ? COLORS.gold : tint;
+    const borderCol = active ? COLORS.gold : unlocked ? COLORS.gold : tint;
 
     slot.add(
       this.add
-        .rectangle(0, 0, w, h, selected ? 0x4a4636 : COLORS.card2)
-        .setStrokeStyle(selected ? 4 : 3, borderCol)
+        .rectangle(0, 0, w, h, active ? 0x4a4636 : COLORS.card2)
+        .setStrokeStyle(active ? 4 : 3, borderCol)
     );
     slot.add(portrait(this, 0, -20, adv.id, 82, tint));
     slot.add(this.add.rectangle(w / 2 - 30, -h / 2 + 18, 56, 28, COLORS.panelDark).setStrokeStyle(2, COLORS.border));
     slot.add(titleText(this, w / 2 - 30, -h / 2 + 18, `LV.${adv.level}`, 12, COLORS.cream));
-    if (selected) slot.add(titleText(this, -w / 2 + 18, -h / 2 + 18, '✔', 16, COLORS.gold));
-    if (unlocked) slot.add(titleText(this, -w / 2 + 18, -h / 2 + 18, '★', 16, COLORS.gold));
+    if (unlocked) slot.add(titleText(this, -w / 2 + 16, -h / 2 + 18, '★', 16, COLORS.gold));
+    // Estado de asistencia: ACTIVO (asiste este turno) vs en espera (atenuado).
+    slot.add(
+      active
+        ? titleText(this, 0, -h / 2 + 18, 'ACTIVO', 12, COLORS.gold)
+        : bodyText(this, 0, -h / 2 + 18, '· · ·', 14, COLORS.cardLo)
+    );
     slot.add(bodyText(this, 0, h / 2 - 32, `* ${adv.name.split(' ')[0]}`, 14, COLORS.gold));
 
     // Medidor de AFINIDAD (bond) — barra fina al pie del slot.
@@ -220,23 +239,9 @@ export class RunPlayScene extends Phaser.Scene {
       );
     }
 
-    // Asignable solo en turnos de entrenamiento.
-    const assignable = !this.busy && this.turn < RUN_TURNS && !isEventTurn(this.run.seed, this.turn);
-    if (assignable) {
-      // Hit-area en coords top-left: Phaser suma displayOrigin (w/2,h/2) al
-      // punto local del Container antes de Contains, así que el rect va en (0,0).
-      slot.setSize(w, h).setInteractive(new Phaser.Geom.Rectangle(0, 0, w, h), Phaser.Geom.Rectangle.Contains);
-      if (slot.input) slot.input.cursor = 'pointer';
-      slot.on('pointerdown', () => this.toggleConsejero(adv.id));
-    }
+    // Los consejeros en espera se ven ATENUADOS (ya no se tocan: se activan al azar).
+    if (!active) slot.setAlpha(0.55);
     return slot;
-  }
-
-  private toggleConsejero(id: string): void {
-    if (this.busy || this.turn >= RUN_TURNS || isEventTurn(this.run.seed, this.turn)) return;
-    if (this.pendingConsejeros.has(id)) this.pendingConsejeros.delete(id);
-    else this.pendingConsejeros.add(id);
-    this.render();
   }
 
   /* ---- 3. Recuperación (descanso consume el turno) ------------- */
@@ -294,13 +299,15 @@ export class RunPlayScene extends Phaser.Scene {
   private trainingCards(c: Phaser.GameObjects.Container): void {
     const cx = GAME_W / 2;
     c.add(titleText(this, cx, 958, 'ENTRENAMIENTO', 17, COLORS.cream));
-    const n = this.pendingConsejeros.size;
+    const n = this.activeThisTurn.size;
     c.add(
       bodyText(
         this,
         cx,
         990,
-        n > 0 ? `${n} consejero(s) asignado(s) · toca una carta para entrenar` : 'toca un consejero para asignarlo · luego una carta',
+        n > 0
+          ? `${n} consejero(s) ASISTEN este turno · elige una afinidad`
+          : 'ningún consejero asiste este turno · elige una afinidad',
         15,
         COLORS.gold
       )
@@ -314,7 +321,7 @@ export class RunPlayScene extends Phaser.Scene {
     const W = 236;
     const H = 236;
     const pal = STAT_PALETTE[choice];
-    const pv = previewTurn(this.run.advisors, choice, this.energy, [...this.pendingConsejeros]);
+    const pv = previewTurn(this.run.seed, this.run.advisors, choice, this.energy, this.turn);
     const risky = pv.successPct < 0.7;
 
     const card = this.add.container(x, y);
@@ -341,7 +348,9 @@ export class RunPlayScene extends Phaser.Scene {
         ? `🎲x${pv.roll.dice.length} ${die[0]}-${die[die.length - 1]}`
         : `🎲 ${die[0]}-${die[die.length - 1]}`;
     const dieTxt = bodyText(this, 0, 70, dieLabel, 14, pal.text).setAlpha(0.9);
-    const cost = bodyText(this, 0, 96, `⚡ -${pv.energyCost} energía`, 14, pal.text).setAlpha(0.85);
+    // Coste NETO de energía: los Intendentes activos pueden reembolsar (incluso a positivo).
+    const costLabel = pv.energyCost >= 0 ? `⚡ -${pv.energyCost} energía` : `⚡ +${-pv.energyCost} energía`;
+    const cost = bodyText(this, 0, 96, costLabel, 14, pal.text).setAlpha(0.85);
 
     const press = this.add.container(0, 0, [body, top, bottom, name, val, gain, odds, dieTxt, cost]);
     card.add([shadow, press]);
@@ -431,11 +440,9 @@ export class RunPlayScene extends Phaser.Scene {
 
   private train(choice: Affinity): void {
     if (this.busy || this.turn >= RUN_TURNS || isEventTurn(this.run.seed, this.turn)) return;
-    const consejeroIds = [...this.pendingConsejeros];
-    this.actionLog.push({ kind: 'train', choice, consejeroIds });
+    this.actionLog.push({ kind: 'train', choice });
     const tr = this.recompute();
     this.applyMood(tr);
-    this.pendingConsejeros.clear();
     this.turn += 1;
     this.render();
     this.playDiceThenFeedback(tr);
@@ -519,6 +526,11 @@ export class RunPlayScene extends Phaser.Scene {
 
   private showTrainFeedback(tr: TurnResult): void {
     if (tr.kind !== 'train' || !tr.choice) return;
+    // Efectos de run detonados por consejeros activos (el diferenciador del pool).
+    if (tr.advisorProcs && tr.advisorProcs.length > 0) {
+      const labels = [...new Set(tr.advisorProcs.map((p) => p.label))].join(' · ');
+      toast(this, `✦ ${labels}`, COLORS.gold);
+    }
     const idx = (['OFE', 'DEF', 'MAN'] as Affinity[]).indexOf(tr.choice);
     const x = GAME_W / 2 + (idx - 1) * 248;
     const y = 1014;

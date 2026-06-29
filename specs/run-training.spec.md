@@ -11,7 +11,7 @@ estado de la run con expiración, y devolver al cliente la `seed` y el `deckSnap
 La `seed` y el `deckSnapshot` SHALL ser determinados por el servidor, nunca por el cliente.
 
 #### Scenario: Inicio de run entrega semilla y deck (happy)
-- GIVEN un usuario autenticado con un loadout de 4 consejeros
+- GIVEN un usuario autenticado con un loadout de 3 consejeros
 - WHEN solicita iniciar una run
 - THEN el servidor crea `runId` + `seed`, persiste la run como abierta con TTL
 - AND devuelve `seed` y `deckSnapshot` al cliente
@@ -98,28 +98,34 @@ determinista).
 - THEN se tira el dado armado desde los modificadores y la energía
 - AND la banda resultante fija la ganancia aplicada a la stat
 
-### Requirement: Consejero Assignment Per Training
-El jugador SHALL poder asignar un subconjunto del deck a cada turno de entrenamiento.
-La acción `train` SHALL incluir `consejeroIds`; el servidor SHALL rechazar cualquier id
-que no pertenezca al `deckSnapshot`. Un conjunto vacío SHALL ser válido (entrenamiento
-sin asistencia). Cada consejero asignado SHALL aportar modificadores a la tirada según
-su afinidad y nivel; varios consejeros agregan sus efectos.
+### Requirement: Consejero Activation Per Training
+Los consejeros del loadout NO se asignan por turno (ya no son clickeables in-run). En cada
+turno de entrenamiento, cada consejero del `deckSnapshot` SHALL activarse al azar de forma
+DETERMINISTA derivada de `(seed, turno)` (PRNG `seed:act:<turno>`, independiente del stream
+del dado). La probabilidad de activación SHALL subir linealmente con el progreso de la run
+(≈5% en el primer turno hasta ≈75% en el último), sesgada por consejero (`activationBias`).
+Pueden quedar entre 0 y `LOADOUT_SIZE` consejeros activos por turno. La acción `train` SHALL
+llevar SOLO la afinidad (sin `consejeroIds`). Solo los consejeros ACTIVOS reforman la tirada
+—según su arquetipo de entrenamiento (maestro/alquimista/intendente)— y detonan su efecto de
+run (ver decisions/0012).
 
-#### Scenario: Asignar varios consejeros a un entrenamiento (happy)
-- GIVEN un deck de 3 consejeros y un turno de entrenamiento
-- WHEN el jugador asigna 2 de ellos y confirma
-- THEN ambos reforman la tirada y la acción registra sus `consejeroIds`
+#### Scenario: Activación aleatoria reproducible (happy)
+- GIVEN un loadout de 3 consejeros y una `seed`
+- WHEN se re-simula la run en cliente y servidor
+- THEN el conjunto de consejeros activos por turno coincide exactamente (determinista)
+- AND la probabilidad media de activación es mayor en turnos tardíos que en los iniciales
 
-#### Scenario: Consejero ajeno al deck (sad)
-- GIVEN una acción `train` cuyos `consejeroIds` referencian un id fuera del `deckSnapshot`
+#### Scenario: La acción train no transporta consejeros (happy)
+- GIVEN una acción `train`
 - WHEN el servidor valida el `actionLog`
-- THEN rechaza el envío sin acuñar general
+- THEN solo exige una afinidad válida (OFE/DEF/MAN); no hay `consejeroIds` que validar
 
 ### Requirement: Bond Accrual And Ability Unlock
-La participación de un consejero en entrenamientos SHALL acumular su `bond` (afinidad)
-durante la run. El `bond` SHALL ser por-run y derivado de `(seed, deck, actionLog)`, sin
-persistirse. Al cruzar el umbral de `bond`, la habilidad de combate del consejero SHALL
-unirse a las habilidades del general acuñado (junto con las habilidades por umbral de stat).
+La activación de un consejero en entrenamientos SHALL acumular su `bond` (afinidad) durante
+la run. El `bond` SHALL ser por-run y derivado de `(seed, deck, actionLog)` —el set activo es
+función de `(seed, turno)`—, sin persistirse. Al cruzar el umbral de `bond`, la habilidad de
+combate del consejero SHALL unirse a las habilidades del general acuñado (junto con las
+habilidades por umbral de stat).
 
 #### Scenario: Desbloqueo de habilidad por afinidad (happy)
 - GIVEN un consejero que participa en suficientes entrenamientos para cruzar el umbral de bond

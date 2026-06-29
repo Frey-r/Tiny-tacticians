@@ -18,6 +18,8 @@ export {
   BOND_PER_TRAIN,
   BOND_AFFINITY_BONUS,
   BOND_THRESHOLD,
+  ACTIVATION_MIN,
+  ACTIVATION_MAX,
   CONSEJERO_ABILITY,
   calculatePower,
   calculateTier,
@@ -26,9 +28,13 @@ export {
   baseGain,
   failChance,
   critChance,
-  consejeroDieMod,
+  activationRamp,
+  activationChance,
+  activeAdvisorsForTurn,
+  secondaryStatFor,
+  consejeroTrainMod,
   energyFailShift,
-  buildTrainRoll,
+  planTrainTurn,
   buildEventRoll,
   buildAbilityRoll,
   gainForBand,
@@ -39,7 +45,7 @@ export {
   isEventTurn,
   eventForTurn,
 } from './balance.ts';
-export type { BranchingEvent, EventBranch, ConsejeroDieMod } from './balance.ts';
+export type { BranchingEvent, EventBranch, TrainMod, TrainTurnPlan } from './balance.ts';
 export {
   rollDice,
   rollOdds,
@@ -55,11 +61,22 @@ export {
 } from './dice.ts';
 export type { DieSpec, Thresholds, CombineMode, DiceRoll, DiceOutcome, Face, OutcomeBand } from './dice.ts';
 export {
-  CONSEJERO_ABILITIES,
+  COMBAT_ABILITIES,
   CONSEJERO_ABILITY_LIST,
   CONSEJERO_PROC_CHANCE,
-} from './consejeroAbilities.ts';
-export type { ConsejeroAbility, AbilityEffect } from './consejeroAbilities.ts';
+  CONSEJERO_CATALOG,
+  RUN_EFFECTS,
+  consejeroDef,
+  DEFAULT_CONSEJERO_IDS,
+} from './consejeroCatalog.ts';
+export type {
+  ConsejeroAbility,
+  AbilityEffect,
+  ConsejeroDef,
+  TrainStyle,
+  RunEffectId,
+  RunEffectDef,
+} from './consejeroCatalog.ts';
 export { validateActionLog } from './validate.ts';
 export { simulateRun } from './simulateRun.ts';
 export { simulateBattle } from './simulateBattle.ts';

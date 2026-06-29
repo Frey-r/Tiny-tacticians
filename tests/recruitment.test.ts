@@ -9,6 +9,9 @@ import {
   CONTRACT_UNLOCK_GOLD,
 } from '../src/server/core/recruitment.ts';
 import { getUserProfile, getUserConsejeros } from '../src/server/core/rewards.ts';
+import { ACQUIRABLE_CONSEJEROS } from '../src/server/core/advisors.ts';
+
+const ACQUIRABLE_IDS = ACQUIRABLE_CONSEJEROS.map((a) => a.id);
 
 describe('recruitment — contratos', () => {
   it('getContracts defaults to zero', async () => {
@@ -41,7 +44,7 @@ describe('recruitment — petición diaria (préstamo temporal)', () => {
     await getUserProfile(u);
     const adv = await requestDailyLoan(u);
     expect(adv.temporary).toBe(true);
-    expect(['c4', 'c5', 'c6', 'c7', 'c8', 'c9']).toContain(adv.id);
+    expect(ACQUIRABLE_IDS).toContain(adv.id);
 
     const list = await getUserConsejeros(u);
     expect(list.some((c) => c.id === adv.id && c.temporary)).toBe(true);
@@ -94,7 +97,7 @@ describe('recruitment — desbloqueo con contrato', () => {
     const s = await getRecruitmentState(u);
     expect(s.contracts.blue).toBe(1);
     expect(s.unlockCost).toBe(CONTRACT_UNLOCK_GOLD);
-    expect(s.candidates).toHaveLength(6); // c4..c9
+    expect(s.candidates).toHaveLength(ACQUIRABLE_IDS.length); // todo el pool adquirible (c4..c40)
     expect(s.candidates.every((c) => !c.owned)).toBe(true);
     expect(s.loanAvailable).toBe(true);
   });
