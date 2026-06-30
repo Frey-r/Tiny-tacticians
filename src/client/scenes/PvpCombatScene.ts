@@ -9,7 +9,7 @@
    quedan en pie; el bando ganador es el del `winnerId`.
    ============================================================ */
 import Phaser from 'phaser';
-import { COLORS, GAME_W, PAD, CONTENT_W } from '../ui/theme.ts';
+import { COLORS, GAME_W, PAD, CONTENT_W, hex, TEXT_RES, fontPx, FONT } from '../ui/theme.ts';
 import {
   headerBar,
   retroButton,
@@ -26,6 +26,7 @@ import { openScrollPanel } from '../ui/scrollPanel.ts';
 import { grassField } from '../ui/terrain.ts';
 import { loadUserData } from '../state.ts';
 import { deriveArmy, animKey, RANGED, UNIT_SIZE, ARMY_SIZE } from '../combat/army.ts';
+import { queueBattleAssets, ensureBattleAnims } from '../combat/combatAssets.ts';
 import type { UnitType, UnitColor } from '../combat/army.ts';
 import type { BattleResult, BattleRound, General } from '../../shared/types/index.ts';
 
@@ -172,7 +173,51 @@ export class PvpCombatScene extends Phaser.Scene {
     this.logLines = [];
   }
 
+  preload(): void {
+    // Hojas de unidades/FX de batalla: diferidas del arranque (BootScene) y
+    // cargadas aquí la primera vez que se entra al combate (~300 KB). En
+    // entradas posteriores ya están en caché y no se encola nada.
+    if (queueBattleAssets(this)) {
+      this.drawBattleLoading();
+    }
+  }
+
+  /** Indicador ligero mientras se cargan las texturas de batalla (solo 1ª vez). */
+  private drawBattleLoading(): void {
+    this.cameras.main.setBackgroundColor(COLORS.screen);
+    const cx = GAME_W / 2;
+    const cy = 640;
+    const label = this.add
+      .text(cx, cy - 30, 'Preparando batalla…', {
+        fontFamily: FONT.title,
+        fontStyle: '700',
+        fontSize: `${fontPx(20)}px`,
+        color: hex(COLORS.cream),
+      })
+      .setResolution(TEXT_RES)
+      .setOrigin(0.5);
+    const barW = CONTENT_W;
+    const frame = this.add
+      .rectangle(cx, cy + 16, barW + 8, 24, COLORS.panelDark)
+      .setStrokeStyle(3, COLORS.border);
+    const fill = this.add
+      .rectangle(cx - barW / 2, cy + 16, 1, 16, COLORS.lime)
+      .setOrigin(0, 0.5);
+    const onProgress = (v: number): void => {
+      fill.width = Math.max(1, barW * v);
+    };
+    this.load.on('progress', onProgress);
+    this.load.once('complete', () => {
+      this.load.off('progress', onProgress);
+      label.destroy();
+      frame.destroy();
+      fill.destroy();
+    });
+  }
+
   create(): void {
+    // Las anims de batalla se crean tras la carga diferida (idempotente).
+    ensureBattleAnims(this);
     this.cameras.main.setBackgroundColor(COLORS.screen);
     const cx = this.cx;
     headerBar(this, cx, 92, CONTENT_W, '⚔️ Simulador de Batalla ⚔️', 14);

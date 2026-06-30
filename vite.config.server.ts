@@ -16,6 +16,11 @@ export default defineConfig({
   // Node built-ins are still auto-externalized by Vite's SSR/node build.
   ssr: {
     noExternal: true,
+    // `ioredis` es SOLO para dev (proxy Redis local). En prod no se usa nunca
+    // (la rama isDev no corre) y Devvit aporta su Redis gestionado. Externalizarlo
+    // lo saca del bundle (~cientos de KB): el único `require('ioredis')` que queda
+    // está tras un import() dinámico en la rama dev, que prod jamás ejecuta.
+    external: ['ioredis'],
   },
   build: {
     ssr: true,

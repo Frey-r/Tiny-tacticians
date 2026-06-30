@@ -5,8 +5,8 @@
    ============================================================ */
 import Phaser from 'phaser';
 import { COLORS, hex, GAME_W, GAME_H, CONTENT_W, TEXT_RES, fontPx, FONT } from '../ui/theme.ts';
-import { ICON, SPRITE, AVATARS, PANEL, UNIT_SHEETS, FX_SHEETS, TERRAIN, TERRAIN_SHEETS, ARROW, DICE } from '../assets.ts';
-import splashUrl from '../assets/bannerfall_splash.png';
+import { ICON, SPRITE, AVATARS, PANEL, TERRAIN, TERRAIN_SHEETS, DICE } from '../assets.ts';
+import splashUrl from '../assets/bannerfall_splash.jpg';
 
 // Spritesheets animados (frames horizontales). Tamaños reales del pack:
 // warrior 1536x192 (8x192), archer 1152x192 (6x192), lancer 3840x320 (12x320).
@@ -31,7 +31,6 @@ const IMAGES: Record<string, string> = {
   cloud1: SPRITE.cloud1,
   cloud2: SPRITE.cloud2,
   explosion: SPRITE.explosion,
-  splash: splashUrl,
   paper: PANEL.paper,
   paperSpecial: PANEL.paperSpecial,
   banner: PANEL.banner,
@@ -43,6 +42,10 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
+    // El splash (portada Bannerfall) se carga PRIMERO y se usa como fondo de la
+    // pantalla de carga en cuanto llega, en vez de quedar en caché sin mostrarse.
+    this.load.image('splash', splashUrl);
+    this.load.once('filecomplete-image-splash', () => this.showSplashBackdrop());
     this.drawLoadingBar();
 
     for (const [key, sheet] of Object.entries(SHEETS)) {
@@ -51,8 +54,11 @@ export class BootScene extends Phaser.Scene {
         frameHeight: sheet.frameHeight,
       });
     }
-    // Unidades de combate + FX (Fase 2) + decoración de terreno: spritesheets animados.
-    for (const s of [...UNIT_SHEETS, ...FX_SHEETS, ...TERRAIN_SHEETS]) {
+    // Decoración de terreno (árbol/arbusto/oveja): spritesheets animados que
+    // decoran tanto el menú como el campo. Las hojas de UNIDADES de combate, los
+    // FX y las flechas NO se cargan aquí — se difieren a PvpCombatScene vía
+    // combat/combatAssets.ts para aligerar el arranque (~300 KB menos).
+    for (const s of TERRAIN_SHEETS) {
       this.load.spritesheet(s.texKey, s.url, { frameWidth: s.frameW, frameHeight: s.frameH });
     }
     // Tileset de césped (grid 64x64, sin animar) + rocas estáticas del campo.
@@ -63,8 +69,6 @@ export class BootScene extends Phaser.Scene {
     for (const [name, url] of Object.entries(TERRAIN.rocks)) {
       this.load.image(`terrain_${name}`, url);
     }
-    this.load.image('cu_arrow_blue', ARROW.blue);
-    this.load.image('cu_arrow_red', ARROW.red);
     // Dados (sin animación: las caras se ciclan a mano para respetar el rango permitido).
     this.load.spritesheet(DICE.key, DICE.url, { frameWidth: DICE.frameW, frameHeight: DICE.frameH });
     for (const [key, url] of Object.entries(IMAGES)) {
@@ -87,8 +91,10 @@ export class BootScene extends Phaser.Scene {
         repeat: -1,
       });
     }
-    // Anims de las unidades de combate, FX y decoración de terreno (clave de anim == clave de textura).
-    for (const s of [...UNIT_SHEETS, ...FX_SHEETS, ...TERRAIN_SHEETS]) {
+    // Anims de la decoración de terreno (clave de anim == clave de textura).
+    // Las anims de unidades de combate y FX se crean en PvpCombatScene tras la
+    // carga diferida (ver combat/combatAssets.ts § ensureBattleAnims).
+    for (const s of TERRAIN_SHEETS) {
       this.anims.create({
         key: s.texKey,
         frames: this.anims.generateFrameNumbers(s.texKey, { start: 0, end: s.frames - 1 }),
@@ -99,32 +105,30 @@ export class BootScene extends Phaser.Scene {
     this.scene.start('Home');
   }
 
+  /** Coloca el splash como fondo (cover-fit) detrás de la barra de carga. */
+  private showSplashBackdrop(): void {
+    const img = this.add.image(GAME_W / 2, GAME_H / 2, 'splash').setDepth(-10);
+    // Cubrir 960x1280 conservando proporción (recorta laterales del cuadrado).
+    img.setScale(Math.max(GAME_W / img.width, GAME_H / img.height));
+    // Velo oscuro para que la barra de carga y el % se lean sobre el arte.
+    this.add.rectangle(GAME_W / 2, GAME_H / 2, GAME_W, GAME_H, 0x000000, 0.42).setDepth(-9);
+  }
+
   private drawLoadingBar(): void {
     this.cameras.main.setBackgroundColor(COLORS.bg);
     const cx = GAME_W / 2;
-    const cy = GAME_H / 2;
-
-    this.add
-      .text(cx, cy - 70, 'TINY\nTACTICIANS', {
-        fontFamily: FONT.title,
-        fontStyle: '700',
-        fontSize: `${fontPx(34)}px`,
-        color: hex(COLORS.lime),
-        align: 'center',
-        lineSpacing: 14,
-      })
-      .setResolution(TEXT_RES)
-      .setOrigin(0.5)
-      .setShadow(0, 2, 'rgba(0,0,0,0.5)', 3, false, true);
+    // Barra cerca del borde inferior para no tapar el título de la portada.
+    const cy = GAME_H - 170;
 
     const barW = CONTENT_W;
     const barH = 28;
-    this.add.rectangle(cx, cy + 40, barW + 8, barH + 8, COLORS.panelDark).setStrokeStyle(3, COLORS.border);
-    const fill = this.add.rectangle(cx - barW / 2, cy + 40, 1, barH, COLORS.lime).setOrigin(0, 0.5);
+    this.add.rectangle(cx, cy, barW + 8, barH + 8, COLORS.panelDark).setStrokeStyle(3, COLORS.border);
+    const fill = this.add.rectangle(cx - barW / 2, cy, 1, barH, COLORS.lime).setOrigin(0, 0.5);
     const pct = this.add
-      .text(cx, cy + 90, '0%', { fontFamily: FONT.title, fontStyle: '700', fontSize: `${fontPx(18)}px`, color: hex(COLORS.cream) })
+      .text(cx, cy + 46, '0%', { fontFamily: FONT.title, fontStyle: '700', fontSize: `${fontPx(18)}px`, color: hex(COLORS.cream) })
       .setResolution(TEXT_RES)
-      .setOrigin(0.5);
+      .setOrigin(0.5)
+      .setShadow(0, 2, 'rgba(0,0,0,0.6)', 3, false, true);
 
     this.load.on('progress', (value: number) => {
       fill.width = Math.max(1, barW * value);

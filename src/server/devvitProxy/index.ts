@@ -1,6 +1,9 @@
 import { AsyncLocalStorage } from 'async_hooks';
 import * as webServer from '@devvit/web/server';
-import Redis from 'ioredis';
+// Solo el TIPO de ioredis (se borra en compilación → no genera require). El
+// CONSTRUCTOR se carga con import() dinámico SOLO en dev, y `ioredis` está en
+// `ssr.external` del build del servidor para que NO entre al bundle de prod.
+import type Redis from 'ioredis';
 
 export interface DevvitTxn {
   set(key: string, value: string, options?: { expiration?: number | Date; nx?: boolean }): DevvitTxn;
@@ -238,23 +241,29 @@ let useInMemoryFallback = isTest;
 const testRedis = new InMemoryRedis();
 
 if (isDev && !isTest) {
-  try {
-    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-    localRedis = new Redis(redisUrl, {
-      maxRetriesPerRequest: 0, // Fail fast to trigger in-memory fallback immediately
-      connectTimeout: 500,
-      showFriendlyErrorStack: false
-    });
-    
-    localRedis.on('error', (err) => {
-      if (!useInMemoryFallback) {
-        console.warn('\n⚠️ [Tiny Tacticians Dev] Local Redis connection failed. Falling back to self-contained InMemoryRedis for session.');
-        useInMemoryFallback = true;
-      }
-    });
-  } catch (err) {
-    useInMemoryFallback = true;
-  }
+  // import() dinámico: en producción esta rama nunca se ejecuta, así que el
+  // require lazy de ioredis (externalizado) tampoco. Si una petición llega antes
+  // de que resuelva, localRedisProxy cae al InMemoryRedis vía su try/catch.
+  void (async () => {
+    try {
+      const { default: RedisCtor } = await import('ioredis');
+      const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+      localRedis = new RedisCtor(redisUrl, {
+        maxRetriesPerRequest: 0, // Fail fast to trigger in-memory fallback immediately
+        connectTimeout: 500,
+        showFriendlyErrorStack: false,
+      });
+
+      localRedis.on('error', () => {
+        if (!useInMemoryFallback) {
+          console.warn('\n⚠️ [Tiny Tacticians Dev] Local Redis connection failed. Falling back to self-contained InMemoryRedis for session.');
+          useInMemoryFallback = true;
+        }
+      });
+    } catch {
+      useInMemoryFallback = true;
+    }
+  })();
 }
 
 function parseWithScores(raw: string[]): { member: string; score: number }[] {
