@@ -6,7 +6,6 @@
 import Phaser from 'phaser';
 import { COLORS, hex, GAME_W, GAME_H, CONTENT_W, TEXT_RES, fontPx, FONT } from '../ui/theme.ts';
 import { ICON, SPRITE, AVATARS, PANEL, TERRAIN, TERRAIN_SHEETS, DICE } from '../assets.ts';
-import splashUrl from '../assets/bannerfall_splash.jpg';
 
 // Spritesheets animados (frames horizontales). Tamaños reales del pack:
 // warrior 1536x192 (8x192), archer 1152x192 (6x192), lancer 3840x320 (12x320).
@@ -42,10 +41,6 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
-    // El splash (portada Bannerfall) se carga PRIMERO y se usa como fondo de la
-    // pantalla de carga en cuanto llega, en vez de quedar en caché sin mostrarse.
-    this.load.image('splash', splashUrl);
-    this.load.once('filecomplete-image-splash', () => this.showSplashBackdrop());
     this.drawLoadingBar();
 
     for (const [key, sheet] of Object.entries(SHEETS)) {
@@ -105,30 +100,32 @@ export class BootScene extends Phaser.Scene {
     this.scene.start('Home');
   }
 
-  /** Coloca el splash como fondo (cover-fit) detrás de la barra de carga. */
-  private showSplashBackdrop(): void {
-    const img = this.add.image(GAME_W / 2, GAME_H / 2, 'splash').setDepth(-10);
-    // Cubrir 960x1280 conservando proporción (recorta laterales del cuadrado).
-    img.setScale(Math.max(GAME_W / img.width, GAME_H / img.height));
-    // Velo oscuro para que la barra de carga y el % se lean sobre el arte.
-    this.add.rectangle(GAME_W / 2, GAME_H / 2, GAME_W, GAME_H, 0x000000, 0.42).setDepth(-9);
-  }
-
   private drawLoadingBar(): void {
     this.cameras.main.setBackgroundColor(COLORS.bg);
     const cx = GAME_W / 2;
-    // Barra cerca del borde inferior para no tapar el título de la portada.
-    const cy = GAME_H - 170;
+    const cy = GAME_H / 2;
+
+    this.add
+      .text(cx, cy - 70, 'TINY\nTACTICIANS', {
+        fontFamily: FONT.title,
+        fontStyle: '700',
+        fontSize: `${fontPx(34)}px`,
+        color: hex(COLORS.lime),
+        align: 'center',
+        lineSpacing: 14,
+      })
+      .setResolution(TEXT_RES)
+      .setOrigin(0.5)
+      .setShadow(0, 2, 'rgba(0,0,0,0.5)', 3, false, true);
 
     const barW = CONTENT_W;
     const barH = 28;
-    this.add.rectangle(cx, cy, barW + 8, barH + 8, COLORS.panelDark).setStrokeStyle(3, COLORS.border);
-    const fill = this.add.rectangle(cx - barW / 2, cy, 1, barH, COLORS.lime).setOrigin(0, 0.5);
+    this.add.rectangle(cx, cy + 40, barW + 8, barH + 8, COLORS.panelDark).setStrokeStyle(3, COLORS.border);
+    const fill = this.add.rectangle(cx - barW / 2, cy + 40, 1, barH, COLORS.lime).setOrigin(0, 0.5);
     const pct = this.add
-      .text(cx, cy + 46, '0%', { fontFamily: FONT.title, fontStyle: '700', fontSize: `${fontPx(18)}px`, color: hex(COLORS.cream) })
+      .text(cx, cy + 90, '0%', { fontFamily: FONT.title, fontStyle: '700', fontSize: `${fontPx(18)}px`, color: hex(COLORS.cream) })
       .setResolution(TEXT_RES)
-      .setOrigin(0.5)
-      .setShadow(0, 2, 'rgba(0,0,0,0.6)', 3, false, true);
+      .setOrigin(0.5);
 
     this.load.on('progress', (value: number) => {
       fill.width = Math.max(1, barW * value);
