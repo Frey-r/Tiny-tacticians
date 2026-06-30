@@ -66,14 +66,30 @@ export class ReclutamientoScene extends Phaser.Scene {
 
     // --- Oro + contratos ---
     c.add(bodyText(this, PAD, 128, `Oro: ${s.gold}`, 14, COLORS.gold).setOrigin(0, 0.5));
-    const contractsTxt = (['white', 'red', 'blue', 'purple'] as ContractColor[])
-      .map((col) => `${CONTRACT_ICON[col]}${s.contracts[col]}`)
-      .join('   ');
-    c.add(bodyText(this, GAME_W - PAD, 128, contractsTxt, 16, COLORS.cream).setOrigin(1, 0.5));
+    
+    // Dibujar contratos como bloques de color visuales en lugar de emojis
+    let startX = GAME_W - PAD;
+    const colorsList = ['purple', 'blue', 'red', 'white'] as ContractColor[];
+    const colorHex: Record<ContractColor, number> = {
+      white: 0xefe7d6,
+      red: COLORS.affOFE,
+      blue: COLORS.affDEF,
+      purple: COLORS.affMAN
+    };
+    
+    colorsList.forEach((col) => {
+      const val = s.contracts[col];
+      const t = bodyText(this, startX, 128, String(val), 16, COLORS.cream).setOrigin(1, 0.5);
+      startX -= t.width + 8;
+      const sq = this.add.rectangle(startX - 10, 128, 20, 20, colorHex[col]).setStrokeStyle(2, COLORS.border);
+      c.add(sq);
+      c.add(t);
+      startX -= 32;
+    });
 
     // --- Petición diaria (préstamo temporal) ---
     c.add(retroPanel(this, cx, 232, CONTENT_W, 132, COLORS.card));
-    c.add(titleText(this, cx, 186, '🎁 Petición diaria', 14, COLORS.ink));
+    c.add(titleText(this, cx, 186, 'Petición diaria', 14, COLORS.ink));
     if (s.loan) {
       const hoursLeft = Math.max(1, Math.ceil((s.loan.expiresAt - Date.now()) / 3600_000));
       c.add(bodyText(this, cx, 222, `Préstamo: ${s.loan.name} (${s.loan.affinity})`, 13, COLORS.ink));
@@ -98,7 +114,7 @@ export class ReclutamientoScene extends Phaser.Scene {
       c.add(bodyText(this, PAD + 100, ry + 10, `Afinidad ${cand.affinity}`, 11, COLORS.ink).setOrigin(0, 0.5));
 
       if (cand.owned) {
-        c.add(bodyText(this, GAME_W - PAD - 96, ry, '✔ RECLUTADO', 12, COLORS.lime));
+        c.add(bodyText(this, GAME_W - PAD - 96, ry, 'RECLUTADO', 12, COLORS.lime));
         return;
       }
 
@@ -107,10 +123,10 @@ export class ReclutamientoScene extends Phaser.Scene {
       const useColor: ContractColor | null = s.contracts[match] > 0 ? match : s.contracts.white > 0 ? 'white' : null;
       const canPay = useColor !== null && s.gold >= s.unlockCost;
       const label = useColor
-        ? `RECLUTAR ${CONTRACT_ICON[useColor]}`
-        : `Falta contrato ${CONTRACT_NAME[match]}`;
+        ? `RECLUTAR (${CONTRACT_NAME[useColor].toUpperCase()})`
+        : `FALTA CONTRATO ${CONTRACT_NAME[match].toUpperCase()}`;
       if (cand.onLoan) {
-        c.add(bodyText(this, GAME_W - PAD - 200, ry - 30, '⏳ prestado', 10, COLORS.gold).setOrigin(0.5));
+        c.add(bodyText(this, GAME_W - PAD - 200, ry - 30, 'prestado', 10, COLORS.gold).setOrigin(0.5));
       }
       c.add(
         retroButton(this, GAME_W - PAD - 130, ry, label, {

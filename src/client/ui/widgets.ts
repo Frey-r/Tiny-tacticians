@@ -158,17 +158,18 @@ export function titleText(
   return scene.add
     .text(x, y, str, {
       fontFamily: FONT.title,
+      // Oswald trae pesos reales: usamos 700 en vez del faux-bold por trazo del
+      // mismo color, que con el reescalado FIT producía el "doble contorno".
+      fontStyle: '700',
       fontSize: `${px}px`,
       color: hex(color),
-      // Trazo del mismo color = engrosado (faux-bold). Press Start 2P es una
-      // fuente pixel de un solo peso; el contorno le da cuerpo sin perder el
-      // look retro. Proporcional al tamaño para que no embarre los glifos.
-      stroke: hex(color),
-      strokeThickness: Math.max(1, Math.round(px * 0.08)),
     })
     .setResolution(TEXT_RES)
     .setOrigin(0.5)
-    .setShadow(2, 2, 'rgba(0,0,0,0.6)', 0, true, true);
+    // Una sola sombra de apoyo (relleno, sin trazo) para separar el título de
+    // fondos cargados (campo de batalla) sin fantasma. offsetX=0 evita la
+    // sensación de glifo duplicado a lo ancho.
+    .setShadow(0, 2, 'rgba(0,0,0,0.5)', 3, false, true);
 }
 
 export function bodyText(
@@ -202,6 +203,8 @@ export interface ButtonOpts {
   fontSize?: number;
   onClick?: () => void;
   enabled?: boolean;
+  iconKey?: string;
+  iconSize?: number;
 }
 
 /** Botón biselado estilo CTA. Origen centrado en (x,y). */
@@ -217,13 +220,24 @@ export function retroButton(
   // fontPx al renderizar la etiqueta, así medida y render coinciden).
   const px = fontPx(fontSize);
   const padX = 28;
-  const measure = scene.add
-    .text(0, 0, label, { fontFamily: FONT.title, fontSize: `${px}px` })
-    .setVisible(false);
-  const w = opts.width ?? Math.max(140, Math.ceil(measure.width) + padX * 2);
+
+  const hasIcon = !!opts.iconKey;
+  const iconSize = opts.iconSize ?? 32;
+
+  let w = opts.width;
+  if (!w) {
+    if (hasIcon) {
+      w = iconSize + 32;
+    } else {
+      const measure = scene.add
+        .text(0, 0, label, { fontFamily: FONT.title, fontStyle: '700', fontSize: `${px}px` })
+        .setVisible(false);
+      w = Math.max(140, Math.ceil(measure.width) + padX * 2);
+      measure.destroy();
+    }
+  }
   // Altura mínima táctil para móvil (los botones se tocan con el dedo).
   const h = opts.height ?? Math.max(TOUCH_H, px * 2 + 26);
-  measure.destroy();
 
   const enabled = opts.enabled !== false;
   const fill = !enabled
@@ -245,19 +259,28 @@ export function retroButton(
   const body = scene.add.rectangle(0, 0, w, h, fill).setStrokeStyle(3, COLORS.border);
   const topEdge = scene.add.rectangle(0, -h / 2 + 3, w - 6, 4, topColor);
   const bottomEdge = scene.add.rectangle(0, h / 2 - 4, w - 6, 5, edgeColor);
-  const isLightText = !enabled || opts.variant === 'maroon';
-  const shadowColor = isLightText ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.25)';
-  const shadowOffset = isLightText ? 2 : 1;
-  const text = titleText(scene, 0, 0, label, fontSize, enabled ? textColor : 0x46423a).setShadow(
-    shadowOffset,
-    shadowOffset,
-    shadowColor,
-    0,
-    true,
-    isLightText
-  );
+  
+  const press = scene.add.container(0, 0, [body, topEdge, bottomEdge]);
 
-  const press = scene.add.container(0, 0, [body, topEdge, bottomEdge, text]);
+  if (hasIcon) {
+    const iconImg = scene.add.image(0, 0, opts.iconKey!).setDisplaySize(iconSize, iconSize);
+    if (!enabled) iconImg.setTint(0x46423a);
+    press.add(iconImg);
+  } else {
+    const isLightText = !enabled || opts.variant === 'maroon';
+    const shadowColor = isLightText ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.25)';
+    const shadowOffset = isLightText ? 2 : 1;
+    const text = titleText(scene, 0, 0, label, fontSize, enabled ? textColor : 0x46423a).setShadow(
+      shadowOffset,
+      shadowOffset,
+      shadowColor,
+      0,
+      true,
+      isLightText
+    );
+    press.add(text);
+  }
+
   container.add([shadow, press]);
   container.setSize(w, h);
 

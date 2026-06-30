@@ -47,8 +47,8 @@ const config: Phaser.Types.Core.GameConfig = {
 };
 
 async function start(): Promise<void> {
-  // Esperar a las fuentes web (Press Start 2P / JetBrains Mono) para que
-  // los textos pixel-art no se rendericen con una fuente de respaldo.
+  // Esperar a las fuentes web (Oswald / JetBrains Mono) para que los textos
+  // no se rendericen primero con una fuente de respaldo (FOUT).
   try {
     await document.fonts.ready;
   } catch {

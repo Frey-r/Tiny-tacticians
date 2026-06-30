@@ -54,7 +54,7 @@ export class HomeScene extends Phaser.Scene {
         .setOrigin(1, 0.5)
     );
     bar.add(
-      retroButton(this, GAME_W - PAD - 30, 56, '⚙', { variant: 'grey', fontSize: 18, width: 60, height: 56 })
+      retroButton(this, GAME_W - PAD - 30, 56, '', { variant: 'grey', iconKey: 'icon_gear', iconSize: 28, width: 60, height: 56 })
     );
     this.statusBar = bar;
   }
@@ -158,7 +158,7 @@ export class HomeScene extends Phaser.Scene {
   private buildNav(): void {
     const cx = GAME_W / 2;
     // Navegación apilada full-width (objetivos táctiles grandes).
-    retroButton(this, cx, 1012, '>> JUGAR', {
+    retroButton(this, cx, 1012, 'JUGAR', {
       width: CONTENT_W,
       height: 104,
       fontSize: 28,
@@ -197,7 +197,7 @@ export class HomeScene extends Phaser.Scene {
     const cy = GAME_H / 2;
     const panel = retroPanel(this, cx, cy, 620, 440, COLORS.panelDark);
     const title = titleText(this, cx, cy - 160, '¿Qué quieres hacer?', 18, COLORS.cream);
-    const run = retroButton(this, cx, cy - 60, ')==> CORRER RUN', {
+    const run = retroButton(this, cx, cy - 60, 'CORRER RUN', {
       variant: 'grey',
       width: 540,
       height: 76,
@@ -207,7 +207,7 @@ export class HomeScene extends Phaser.Scene {
         this.scene.start('RunSetup');
       },
     });
-    const pvp = retroButton(this, cx, cy + 40, '(D) PVP / ARENA', {
+    const pvp = retroButton(this, cx, cy + 40, 'PVP / ARENA', {
       variant: 'grey',
       width: 540,
       height: 76,
@@ -217,7 +217,7 @@ export class HomeScene extends Phaser.Scene {
         this.scene.start('Pvp');
       },
     });
-    const close = retroButton(this, cx, cy + 150, '[ x cerrar ]', {
+    const close = retroButton(this, cx, cy + 150, 'CERRAR', {
       variant: 'maroon',
       width: 320,
       height: 60,

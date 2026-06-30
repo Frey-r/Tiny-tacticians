@@ -93,6 +93,8 @@ export const DICE = {
   pipFrame: (v: number): number => Math.min(6, Math.max(1, Math.round(v))) - 1,
   /** Frames de la fila central (dados en blanco) para la animación de giro. */
   blankFrames: [6, 7, 8, 9, 10, 11] as number[],
+  /** Frames de la fila inferior (símbolos) para el dado de iconos de habilidad. */
+  symbolFrames: [12, 13, 14, 15, 16, 17] as number[],
 } as const;
 
 // Unidades

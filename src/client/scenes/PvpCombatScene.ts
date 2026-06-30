@@ -21,6 +21,8 @@ import {
   floatingGain,
   outcomeBanner,
 } from '../ui/widgets.ts';
+import { CommanderPanel, abilityMeta } from '../ui/abilityCast.ts';
+import { openScrollPanel } from '../ui/scrollPanel.ts';
 import { grassField } from '../ui/terrain.ts';
 import { loadUserData } from '../state.ts';
 import { deriveArmy, animKey, RANGED, UNIT_SIZE, ARMY_SIZE } from '../combat/army.ts';
@@ -150,6 +152,7 @@ export class PvpCombatScene extends Phaser.Scene {
   private logLines: string[] = [];
   private stepTimer?: Phaser.Time.TimerEvent;
   private skipBtn?: Phaser.GameObjects.Container;
+  private cmd: { blue?: CommanderPanel; red?: CommanderPanel } = {};
 
   constructor() {
     super('PvpCombat');
@@ -205,12 +208,19 @@ export class PvpCombatScene extends Phaser.Scene {
     this.placeArmy('blue');
     this.placeArmy('red');
 
-    // Log + ronda.
-    this.roundLabel = titleText(this, cx, 918, `Ronda 0 / ${this.battle.rounds.length}`, 12, COLORS.cream);
-    retroPanel(this, cx, 1010, CONTENT_W, 150, COLORS.card);
-    this.logText = bodyText(this, cx, 1010, 'Las tropas se forman para la batalla...', 13, COLORS.ink)
-      .setWordWrapWidth(CONTENT_W - 60)
-      .setAlign('center');
+    // Comandantes en las esquinas inferiores: el feedback de cada habilidad
+    // (barra de carga + dado de iconos) se ancla sobre su retrato.
+    this.cmd.blue = new CommanderPanel(this, 118, 1150, a.id, a.name, { side: 'left', tint: 0x4a86c0, size: 116 });
+    this.cmd.red = new CommanderPanel(this, 842, 1150, b.id, b.name, { side: 'right', tint: 0xb85048, size: 116 });
+
+    // Log + ronda en la columna central (entre los comandantes).
+    const logW = 564;
+    this.roundLabel = titleText(this, cx, 900, `Ronda 0 / ${this.battle.rounds.length}`, 12, COLORS.cream);
+    retroPanel(this, cx, 980, logW, 130, COLORS.card);
+    this.logText = bodyText(this, cx, 980, 'Las tropas se forman para la batalla...', 13, COLORS.ink)
+      .setWordWrapWidth(logW - 44)
+      .setAlign('center')
+      .setLineSpacing(6);
 
     this.buildSkipControl();
 
@@ -265,7 +275,7 @@ export class PvpCombatScene extends Phaser.Scene {
     const atkSide: UnitColor = r.attackerId === this.battle.generalA.id ? 'blue' : 'red';
     const defSide: UnitColor = atkSide === 'blue' ? 'red' : 'blue';
 
-    this.pushLog(r.log);
+    this.pushLog(r.log, i + 1);
     this.roundLabel.setText(`Ronda ${i + 1} / ${this.battle.rounds.length}`);
 
     const attacker = this.pickActor(atkSide);
@@ -279,7 +289,9 @@ export class PvpCombatScene extends Phaser.Scene {
       this.time.delayedCall(200, impact);
     }
 
-    this.stepTimer = this.time.delayedCall(this.stepMs, () => this.playRound(i + 1));
+    // Da tiempo extra a las animaciones de habilidad/crítico antes de la siguiente ronda.
+    const hasFeedback = (r.abilityProcs?.length ?? 0) > 0 || !!r.crit;
+    this.stepTimer = this.time.delayedCall(this.stepMs + (hasFeedback ? 650 : 0), () => this.playRound(i + 1));
   }
 
   private applyImpact(r: BattleRound, defSide: UnitColor, target: BattleUnit | null): void {
@@ -292,13 +304,18 @@ export class PvpCombatScene extends Phaser.Scene {
     floatingGain(this, fx, fy, dmgText, col, crit ? 30 : 22);
     if (target) target.flinch();
 
-    const procs = r.abilityProcs ?? [];
     if (crit) {
-      outcomeBanner(this, '✦ ¡GOLPE CRÍTICO!', COLORS.gold, true);
-      this.cameras.main.shake(180, 0.01);
+      this.topFlash('✦ ¡GOLPE CRÍTICO!', COLORS.gold, true);
       this.fxAnim('cu_explosion', fx, fy + 30, 0.75);
-    } else if (procs.length) {
-      outcomeBanner(this, `¡${procs[0].toUpperCase()}!`, COLORS.gold, false);
+    }
+
+    // Cada habilidad activada ilumina el comandante de su bando (barra de carga
+    // + dado de iconos si es aleatoria). Ya NO se dibuja el banner central que
+    // tapaba el combate.
+    const atkSide: UnitColor = defSide === 'blue' ? 'red' : 'blue';
+    for (const name of r.abilityProcs ?? []) {
+      const side = abilityMeta(name).kind === 'defender' ? defSide : atkSide;
+      this.cmd[side]?.cast(name);
     }
 
     this.applyHp(defSide, r.defenderHpAfter);
@@ -371,10 +388,33 @@ export class PvpCombatScene extends Phaser.Scene {
     s.once('animationcomplete', () => s.destroy());
   }
 
-  private pushLog(line: string): void {
-    this.logLines.push(line);
-    if (this.logLines.length > 4) this.logLines.shift();
-    this.logText.setText(this.logLines.join('\n'));
+  private pushLog(line: string, round: number): void {
+    this.logLines.push(`R${round}: ${line}`);
+    if (this.logLines.length > 2) this.logLines.shift();
+    this.logText.setText(this.logLines.join('\n\n'));
+  }
+
+  /** Banner breve ARRIBA del campo (no tapa el combate como el central). */
+  private topFlash(text: string, color: number, shake = false): void {
+    const y = 440;
+    const txt = titleText(this, this.cx, y, text, 24, color).setDepth(620).setScale(0.5);
+    const bg = this.add
+      .rectangle(this.cx, y, txt.width + 60, 56, COLORS.panelDark, 0.92)
+      .setStrokeStyle(4, color)
+      .setDepth(619)
+      .setScale(0.5);
+    this.tweens.add({ targets: [txt, bg], scaleX: 1, scaleY: 1, duration: 200, ease: 'Back.easeOut' });
+    this.tweens.add({
+      targets: [txt, bg],
+      alpha: 0,
+      delay: 700,
+      duration: 380,
+      onComplete: () => {
+        txt.destroy();
+        bg.destroy();
+      },
+    });
+    if (shake) this.cameras.main.shake(180, 0.008);
   }
 
   /* ---- Controles ---------------------------------------------- */
@@ -383,10 +423,10 @@ export class PvpCombatScene extends Phaser.Scene {
     const c = this.add.container(0, 0);
     this.skipBtn = c;
     c.add(
-      retroButton(this, this.cx, 1140, '⏩ SALTAR AL RESULTADO', {
+      retroButton(this, this.cx, 1095, '⏩ SALTAR AL RESULTADO', {
         variant: 'grey',
-        width: CONTENT_W,
-        height: 64,
+        width: 520,
+        height: 56,
         fontSize: 14,
         onClick: () => this.skip(),
       })
@@ -425,30 +465,46 @@ export class PvpCombatScene extends Phaser.Scene {
     this.cameras.main.flash(250, attackerWon ? 40 : 80, attackerWon ? 80 : 20, 20);
     outcomeBanner(this, attackerWon ? '🏆 ¡VICTORIA!' : '💀 DERROTA', attackerWon ? COLORS.lime : COLORS.danger, !attackerWon);
 
+    // Panel en la columna central: deja a la vista los comandantes de las esquinas.
     const panel = this.add.container(0, 0).setDepth(60);
-    panel.add(retroPanel(this, cx, 1070, CONTENT_W, 200, attackerWon ? 0xd8f0d8 : COLORS.card));
+    panel.add(retroPanel(this, cx, 980, 600, 150, attackerWon ? 0xd8f0d8 : COLORS.card));
     panel.add(
-      titleText(this, cx, 1010, attackerWon ? '🏆 ¡VICTORIA!' : '💀 DERROTA', 18, attackerWon ? 0x2e6b2e : COLORS.danger)
+      titleText(this, cx, 945, attackerWon ? '🏆 ¡VICTORIA!' : '💀 DERROTA', 18, attackerWon ? 0x2e6b2e : COLORS.danger)
     );
     panel.add(
       bodyText(
         this,
         cx,
-        1058,
+        992,
         this.note ?? `Recompensa: +${this.rewards.goldEarned} oro  ·  +${this.rewards.scoreEarned} pts`,
         13,
         COLORS.ink
       )
-        .setWordWrapWidth(CONTENT_W - 60)
+        .setWordWrapWidth(560)
         .setAlign('center')
     );
     panel.add(
-      retroButton(this, cx, 1130, this.returnScene === 'Home' ? 'IR AL INICIO' : 'VOLVER', {
-        width: 380,
-        height: 60,
+      retroButton(this, cx, 1095, 'VER REGISTRO COMPLETO', {
+        variant: 'grey',
+        width: 560,
+        height: 54,
+        fontSize: 13,
+        onClick: () => this.openLog(),
+      })
+    );
+    panel.add(
+      retroButton(this, cx, 1158, this.returnScene === 'Home' ? 'IR AL INICIO' : 'VOLVER A LA ARENA', {
+        width: 560,
+        height: 54,
         fontSize: 14,
         onClick: () => this.scene.start(this.returnScene),
       })
     );
+  }
+
+  /** Abre el registro COMPLETO de la batalla en un panel scrollable. */
+  private openLog(): void {
+    const paragraphs = this.battle.rounds.map((r, i) => `Ronda ${i + 1}:\n${r.log}`);
+    openScrollPanel(this, 'Registro de batalla', paragraphs, { fontSize: 13 });
   }
 }

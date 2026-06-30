@@ -78,7 +78,7 @@ export class PvpScene extends Phaser.Scene {
         bodyText(this, GAME_W / 2, cy - 10, 'Necesitas un comandante entrenado\npara entrar al PvP.', 14, COLORS.ink).setAlign('center')
       );
       c.add(
-        retroButton(this, GAME_W / 2, cy + 110, ')==> CORRER RUN', {
+        retroButton(this, GAME_W / 2, cy + 110, 'CORRER RUN', {
           width: CONTENT_W - 80,
           height: 76,
           fontSize: 16,
@@ -134,7 +134,7 @@ export class PvpScene extends Phaser.Scene {
     }
 
     c.add(
-      retroButton(this, cx, 560, '(D) BUSCAR RIVAL', {
+      retroButton(this, cx, 560, 'BUSCAR RIVAL', {
         width: CONTENT_W,
         height: 80,
         fontSize: 18,
@@ -145,7 +145,11 @@ export class PvpScene extends Phaser.Scene {
 
   private renderLeaderboard(c: Phaser.GameObjects.Container): void {
     const cx = GAME_W / 2;
-    c.add(titleText(this, cx, 666, '🏆 Leaderboard S1', 14, COLORS.cream));
+    const lbTitleContainer = this.add.container(cx, 666);
+    const lbIcon = this.add.image(-120, 0, 'icon_sword').setDisplaySize(24, 24);
+    const lbTxt = titleText(this, 10, 0, 'LEADERBOARD S1', 14, COLORS.cream);
+    lbTitleContainer.add([lbIcon, lbTxt]);
+    c.add(lbTitleContainer);
     c.add(retroPanel(this, cx, 930, CONTENT_W, 500, COLORS.card));
 
     if (this.lb.length === 0) {
@@ -204,7 +208,7 @@ export class PvpScene extends Phaser.Scene {
     try {
       const res = await api.post<{ battleResult: BattleResult; rewards: any }>('/api/pvp/battle', { attackerId });
       hide();
-      this.scene.start('PvpCombat', { battleResult: res.battleResult, rewards: res.rewards });
+      this.scene.start('PvpCombat', { battleResult: res.battleResult, rewards: res.rewards, returnScene: 'Pvp' });
     } catch (err: any) {
       hide();
       toast(this, err.message || 'Error al emparejar', COLORS.danger);

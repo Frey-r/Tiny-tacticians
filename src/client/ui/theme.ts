@@ -48,7 +48,7 @@ export function hex(n: number): string {
 }
 
 export const FONT = {
-  title: '"Press Start 2P", "Courier New", monospace',
+  title: '"Oswald", "Arial Narrow", "Helvetica Neue", sans-serif',
   body: '"JetBrains Mono", "VT323", "Courier New", monospace',
 } as const;
 

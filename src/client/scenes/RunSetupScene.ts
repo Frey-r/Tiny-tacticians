@@ -67,7 +67,7 @@ export class RunSetupScene extends Phaser.Scene {
     c.add(retroPanel(this, GAME_W / 2, 986, 560, 70, COLORS.card));
     c.add(bodyText(this, GAME_W / 2, 986, this.generalName, 24, COLORS.ink));
     c.add(
-      retroButton(this, GAME_W / 2, 1072, '🎲 OTRO NOMBRE', {
+      retroButton(this, GAME_W / 2, 1072, 'OTRO NOMBRE', {
         variant: 'grey',
         fontSize: 16,
         width: 360,
@@ -82,7 +82,7 @@ export class RunSetupScene extends Phaser.Scene {
     // Comenzar
     const ready = this.selected.length === 3;
     c.add(
-      retroButton(this, GAME_W / 2, 1208, '>> COMENZAR RUN', {
+      retroButton(this, GAME_W / 2, 1208, 'COMENZAR RUN', {
         width: CONTENT_W,
         height: 88,
         fontSize: 22,

@@ -54,12 +54,18 @@ export class EventosScene extends Phaser.Scene {
     const cx = GAME_W / 2;
 
     c.add(retroPanel(this, cx, 330, CONTENT_W, 380, COLORS.card));
-    c.add(titleText(this, cx, 168, '🛡️ Combate Diario', 16, COLORS.ink));
+    
+    // Dibujar escudo en lugar de emoji 🛡️
+    const dailyTitleContainer = this.add.container(cx, 168);
+    const dailyIcon = this.add.image(-110, 0, 'icon_shield').setDisplaySize(28, 28);
+    const dailyTxt = titleText(this, 18, 0, 'COMBATE DIARIO', 16, COLORS.ink);
+    dailyTitleContainer.add([dailyIcon, dailyTxt]);
+    c.add(dailyTitleContainer);
 
     if (!this.challenge) {
       c.add(bodyText(this, cx, 300, 'No se pudo cargar el reto diario.', 14, COLORS.ink));
       c.add(
-        retroButton(this, cx, 400, '[ REINTENTAR ]', {
+        retroButton(this, cx, 400, 'REINTENTAR', {
           width: 360,
           height: 64,
           fontSize: 14,
@@ -81,10 +87,10 @@ export class EventosScene extends Phaser.Scene {
     c.add(bodyText(this, cx, 356, 'Premio: +100 oro · +5 pts · +1 contrato de consejero', 14, COLORS.gold));
 
     if (this.status.claimed) {
-      c.add(bodyText(this, cx, 440, '✅ Recompensa de hoy reclamada.\n¡Vuelve mañana!', 14, COLORS.lime).setAlign('center'));
+      c.add(bodyText(this, cx, 440, 'Recompensa de hoy reclamada.\n¡Vuelve mañana!', 14, COLORS.lime).setAlign('center'));
     } else if (this.status.completed) {
       c.add(
-        retroButton(this, cx, 440, '[ RECLAMAR RECOMPENSA ]', {
+        retroButton(this, cx, 440, 'RECLAMAR RECOMPENSA', {
           width: CONTENT_W - 40,
           height: 66,
           fontSize: 15,
@@ -95,7 +101,7 @@ export class EventosScene extends Phaser.Scene {
       c.add(bodyText(this, cx, 492, 'Reto completado. ¡Reclama tu botín!', 11, COLORS.ink));
     } else {
       c.add(
-        retroButton(this, cx, 448, '[ JUGAR COMBATE DIARIO ]', {
+        retroButton(this, cx, 448, 'JUGAR COMBATE DIARIO', {
           width: CONTENT_W - 40,
           height: 70,
           fontSize: 15,

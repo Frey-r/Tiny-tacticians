@@ -170,7 +170,7 @@ export class RunPlayScene extends Phaser.Scene {
   private advisorDeck(c: Phaser.GameObjects.Container): void {
     c.add(bodyText(this, PAD, 300, 'ESTADO DE ASESORES', 17, COLORS.cream).setOrigin(0, 0.5));
     c.add(
-      bodyText(this, GAME_W - PAD, 300, `★ ${this.activeThisTurn.size}/${this.run.advisors.length} ACTIVOS`, 14, COLORS.gold).setOrigin(
+      bodyText(this, GAME_W - PAD, 300, `${this.activeThisTurn.size}/${this.run.advisors.length} ACTIVOS`, 14, COLORS.gold).setOrigin(
         1,
         0.5
       )
@@ -218,14 +218,14 @@ export class RunPlayScene extends Phaser.Scene {
     slot.add(portrait(this, 0, -20, adv.id, 82, tint));
     slot.add(this.add.rectangle(w / 2 - 30, -h / 2 + 18, 56, 28, COLORS.panelDark).setStrokeStyle(2, COLORS.border));
     slot.add(titleText(this, w / 2 - 30, -h / 2 + 18, `LV.${adv.level}`, 12, COLORS.cream));
-    if (unlocked) slot.add(titleText(this, -w / 2 + 16, -h / 2 + 18, '★', 16, COLORS.gold));
+    if (unlocked) slot.add(titleText(this, -w / 2 + 16, -h / 2 + 18, 'MAX', 10, COLORS.gold));
     // Estado de asistencia: ACTIVO (asiste este turno) vs en espera (atenuado).
     slot.add(
       active
         ? titleText(this, 0, -h / 2 + 18, 'ACTIVO', 12, COLORS.gold)
         : bodyText(this, 0, -h / 2 + 18, '· · ·', 14, COLORS.cardLo)
     );
-    slot.add(bodyText(this, 0, h / 2 - 32, `* ${adv.name.split(' ')[0]}`, 14, COLORS.gold));
+    slot.add(bodyText(this, 0, h / 2 - 32, adv.name.split(' ')[0], 14, COLORS.gold));
 
     // Medidor de AFINIDAD (bond) — barra fina al pie del slot.
     const barW = w - 28;
@@ -266,7 +266,7 @@ export class RunPlayScene extends Phaser.Scene {
     const py = 700;
     const ph = 210;
 
-    c.add(bodyText(this, PAD, 580, '* LIVE FEED', 17, COLORS.gold).setOrigin(0, 0.5));
+    c.add(bodyText(this, PAD, 580, 'LIVE FEED', 17, COLORS.gold).setOrigin(0, 0.5));
     // Césped vivo: árboles de fondo, arbustos, rocas y una oveja pastando.
     // Semilla derivada de la run => el campamento se ve igual entre turnos.
     c.add(
@@ -332,12 +332,12 @@ export class RunPlayScene extends Phaser.Scene {
 
     const name = titleText(this, 0, -88, choice, 26, pal.text);
     const val = titleText(this, 0, -40, String(this.stats[STAT_KEY[choice]]), 32, pal.text);
-    const gain = bodyText(this, 0, 8, `+${pv.normalGain}  (✦+${pv.critGain})`, 17, pal.text);
+    const gain = bodyText(this, 0, 8, `+${pv.normalGain}  (CRIT +${pv.critGain})`, 17, pal.text);
     const odds = bodyText(
       this,
       0,
       40,
-      `✓${Math.round(pv.successPct * 100)}%   ✦${Math.round(pv.critPct * 100)}%`,
+      `EX: ${Math.round(pv.successPct * 100)}%  CR: ${Math.round(pv.critPct * 100)}%`,
       16,
       risky ? COLORS.gold : pal.text
     );
@@ -345,11 +345,11 @@ export class RunPlayScene extends Phaser.Scene {
     const die = pv.roll.dice[0]?.allowed ?? [1, 2, 3, 4, 5, 6];
     const dieLabel =
       pv.roll.dice.length > 1
-        ? `🎲x${pv.roll.dice.length} ${die[0]}-${die[die.length - 1]}`
-        : `🎲 ${die[0]}-${die[die.length - 1]}`;
+        ? `DADOS x${pv.roll.dice.length} (${die[0]}-${die[die.length - 1]})`
+        : `DADO (${die[0]}-${die[die.length - 1]})`;
     const dieTxt = bodyText(this, 0, 70, dieLabel, 14, pal.text).setAlpha(0.9);
     // Coste NETO de energía: los Intendentes activos pueden reembolsar (incluso a positivo).
-    const costLabel = pv.energyCost >= 0 ? `⚡ -${pv.energyCost} energía` : `⚡ +${-pv.energyCost} energía`;
+    const costLabel = pv.energyCost >= 0 ? `-${pv.energyCost} ENERGÍA` : `+${-pv.energyCost} ENERGÍA`;
     const cost = bodyText(this, 0, 96, costLabel, 14, pal.text).setAlpha(0.85);
 
     const press = this.add.container(0, 0, [body, top, bottom, name, val, gain, odds, dieTxt, cost]);
@@ -381,7 +381,7 @@ export class RunPlayScene extends Phaser.Scene {
     const cx = GAME_W / 2;
     const ev = eventForTurn(this.run.seed, this.turn);
 
-    c.add(titleText(this, cx, 972, '⚡ EVENTO', 18, COLORS.gold));
+    c.add(titleText(this, cx, 972, 'EVENTO', 18, COLORS.gold));
     c.add(retroPanel(this, cx, 1056, CONTENT_W, 124, COLORS.card));
     c.add(titleText(this, cx, 1014, ev.name, 18, COLORS.ink));
     c.add(
@@ -418,7 +418,7 @@ export class RunPlayScene extends Phaser.Scene {
     );
     c.add(titleText(this, cx, 1112, `PODER  ${calculatePower(this.stats)}`, 22, COLORS.cream));
     c.add(
-      retroButton(this, cx, 1200, '🎖️ ACUÑAR GENERAL', {
+      retroButton(this, cx, 1200, 'ACUÑAR GENERAL', {
         width: CONTENT_W,
         height: 88,
         fontSize: 20,
@@ -519,7 +519,7 @@ export class RunPlayScene extends Phaser.Scene {
       const after = this.bond[id] ?? 0;
       if (after >= BOND_THRESHOLD && after - delta < BOND_THRESHOLD) {
         const ability = CONSEJERO_ABILITY[id];
-        if (ability) outcomeBanner(this, `★ AFINIDAD: ${ability}`, COLORS.gold, false);
+        if (ability) outcomeBanner(this, `AFINIDAD: ${ability}`, COLORS.gold, false);
       }
     }
   }
@@ -529,20 +529,20 @@ export class RunPlayScene extends Phaser.Scene {
     // Efectos de run detonados por consejeros activos (el diferenciador del pool).
     if (tr.advisorProcs && tr.advisorProcs.length > 0) {
       const labels = [...new Set(tr.advisorProcs.map((p) => p.label))].join(' · ');
-      toast(this, `✦ ${labels}`, COLORS.gold);
+      toast(this, `EFECTO: ${labels}`, COLORS.gold);
     }
     const idx = (['OFE', 'DEF', 'MAN'] as Affinity[]).indexOf(tr.choice);
     const x = GAME_W / 2 + (idx - 1) * 248;
     const y = 1014;
     if (tr.outcome === 'fail') {
-      floatingGain(this, x, y, '✗ FALLO', COLORS.danger, 24);
-      outcomeBanner(this, '✗ ENTRENAMIENTO FALLIDO', COLORS.danger, true);
+      floatingGain(this, x, y, 'FALLO', COLORS.danger, 24);
+      outcomeBanner(this, 'ENTRENAMIENTO FALLIDO', COLORS.danger, true);
       return;
     }
     const delta = tr.gains[STAT_KEY[tr.choice]] ?? 0;
     const crit = tr.outcome === 'crit';
     floatingGain(this, x, y, `+${delta} ${tr.choice}`, crit ? COLORS.gold : COLORS.lime, crit ? 30 : 24);
-    if (crit) outcomeBanner(this, '✦ ¡ENTRENAMIENTO PERFECTO! ✦', COLORS.gold, false);
+    if (crit) outcomeBanner(this, '¡ENTRENAMIENTO PERFECTO!', COLORS.gold, false);
   }
 
   private showStatDeltas(tr: TurnResult): void {

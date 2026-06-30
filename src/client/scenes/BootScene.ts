@@ -4,7 +4,7 @@
    las alimenta al loader de Phaser y arranca HomeScene.
    ============================================================ */
 import Phaser from 'phaser';
-import { COLORS, hex, GAME_W, GAME_H, CONTENT_W, TEXT_RES, fontPx } from '../ui/theme.ts';
+import { COLORS, hex, GAME_W, GAME_H, CONTENT_W, TEXT_RES, fontPx, FONT } from '../ui/theme.ts';
 import { ICON, SPRITE, AVATARS, PANEL, UNIT_SHEETS, FX_SHEETS, TERRAIN, TERRAIN_SHEETS, ARROW, DICE } from '../assets.ts';
 import splashUrl from '../assets/bannerfall_splash.png';
 
@@ -106,23 +106,23 @@ export class BootScene extends Phaser.Scene {
 
     this.add
       .text(cx, cy - 70, 'TINY\nTACTICIANS', {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: `${fontPx(30)}px`,
+        fontFamily: FONT.title,
+        fontStyle: '700',
+        fontSize: `${fontPx(34)}px`,
         color: hex(COLORS.lime),
         align: 'center',
         lineSpacing: 14,
-        stroke: hex(COLORS.lime),
-        strokeThickness: Math.max(1, Math.round(fontPx(30) * 0.08)),
       })
       .setResolution(TEXT_RES)
-      .setOrigin(0.5);
+      .setOrigin(0.5)
+      .setShadow(0, 2, 'rgba(0,0,0,0.5)', 3, false, true);
 
     const barW = CONTENT_W;
     const barH = 28;
     this.add.rectangle(cx, cy + 40, barW + 8, barH + 8, COLORS.panelDark).setStrokeStyle(3, COLORS.border);
     const fill = this.add.rectangle(cx - barW / 2, cy + 40, 1, barH, COLORS.lime).setOrigin(0, 0.5);
     const pct = this.add
-      .text(cx, cy + 90, '0%', { fontFamily: '"Press Start 2P", monospace', fontSize: `${fontPx(16)}px`, color: hex(COLORS.cream) })
+      .text(cx, cy + 90, '0%', { fontFamily: FONT.title, fontStyle: '700', fontSize: `${fontPx(18)}px`, color: hex(COLORS.cream) })
       .setResolution(TEXT_RES)
       .setOrigin(0.5);
 

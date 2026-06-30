@@ -155,7 +155,7 @@ export class CollectionScene extends Phaser.Scene {
       c.add(card);
     });
     c.add(
-      retroButton(this, cx0, 1148, '➕ RECLUTAR CONSEJERO', {
+      retroButton(this, cx0, 1148, 'RECLUTAR CONSEJERO', {
         variant: 'lime',
         width: CONTENT_W,
         height: 80,
@@ -187,7 +187,7 @@ export class CollectionScene extends Phaser.Scene {
       c.add(titleText(this, rightX, ry - 38, String(g.power), 24, COLORS.gold).setOrigin(1, 0.5));
       c.add(bodyText(this, rightX, ry - 10, 'PODER', 12, COLORS.ink).setOrigin(1, 0.5));
       c.add(
-        retroButton(this, cx - 138, ry + 40, '⚔ COMBATIR', {
+        retroButton(this, cx - 138, ry + 40, 'COMBATIR', {
           width: 330,
           height: 58,
           fontSize: 15,
@@ -251,15 +251,15 @@ export class CollectionScene extends Phaser.Scene {
 
     const kindEs = ability?.kind === 'defender' ? 'Defensa' : 'Ataque';
     addRow(
-      '⚔ HABILIDAD DE COMBATE',
+      'HABILIDAD DE COMBATE',
       ability ? `${ability.ability} · ${kindEs} — ${abilityEffectText(ability.effect)}` : '—'
     );
-    addRow('🎯 ARQUETIPO DE ENTRENAMIENTO', `${style.name} — ${style.desc}`);
+    addRow('ARQUETIPO DE ENTRENAMIENTO', `${style.name} — ${style.desc}`);
     addRow(
-      '✦ EFECTO DE RUN',
+      'EFECTO DE RUN',
       runEff ? `${runEff.label} — ${RUN_EFFECT_DESC[def.runEffectId!] ?? ''}` : 'Ninguno'
     );
-    addRow('⚡ ACTIVACIÓN', activationLabel(def.activationBias));
+    addRow('ACTIVACIÓN', activationLabel(def.activationBias));
 
     // Pie: mejora del próximo nivel + costo + botones.
     m.add(
@@ -272,7 +272,7 @@ export class CollectionScene extends Phaser.Scene {
         this,
         mx,
         top + panelH - 138,
-        maxed ? '★ NIVEL MÁXIMO' : `Costo: ${cost} oro`,
+        maxed ? 'NIVEL MÁXIMO' : `Costo: ${cost} oro`,
         16,
         maxed || gold >= cost ? COLORS.gold : COLORS.danger
       )
