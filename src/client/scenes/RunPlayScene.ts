@@ -48,6 +48,7 @@ import {
   BOND_THRESHOLD,
   CONSEJERO_ABILITY,
   MOOD_START,
+  ENCOUNTER_COUNT,
 } from '../../shared/sim/index.ts';
 import { loadUserData } from '../state.ts';
 import { api } from '../api.ts';
@@ -427,12 +428,12 @@ export class RunPlayScene extends Phaser.Scene {
   private completion(c: Phaser.GameObjects.Container): void {
     const cx = GAME_W / 2;
 
-    // El jefe (4º encuentro) se enfrenta al cerrar la campaña, antes de acuñar.
+    // El jefe (4º encuentro) se combate en la VISTA DE BATALLA vía
+    // `maybeShowEncounter`, igual que el resto de encuentros. Hasta que se
+    // resuelva no dibujamos el resumen: así el jugador pelea al jefe ANTES de
+    // ver el bono de acuñación.
     const boss = this.encounters.find((e) => e.isBoss);
-    if (boss && !this.shownEncounters.has(boss.index)) {
-      this.shownEncounters.add(boss.index);
-      this.showEncounterOverlay(boss, () => this.render());
-    }
+    if (boss && !this.shownEncounters.has(boss.index)) return;
 
     // Resumen de acuñación con el bono del jefe YA aplicado (paridad con el servidor).
     const finalStats = applyEncounterBonus(this.stats, this.bonusEarned);
@@ -590,81 +591,50 @@ export class RunPlayScene extends Phaser.Scene {
     });
   }
 
-  /* ---- Encuentros de combate (overlay de revelación) ----------- */
-  /** Muestra el encuentro NO-jefe que se resolvió tras `turnDone` (una sola vez). */
+  /* ---- Encuentros de combate (vista de batalla 6v6) ------------ */
+  /** Presenta el encuentro resuelto tras `turnDone` en la vista de combate (una sola vez).
+   *  Incluye al jefe: se pelea antes de acuñar y, al cerrar, re-renderiza el resumen. */
   private maybeShowEncounter(turnDone: number): void {
     const enc = this.encounters.find(
-      (e) => e.afterTurn === turnDone && !e.isBoss && !this.shownEncounters.has(e.index)
+      (e) => e.afterTurn === turnDone && !this.shownEncounters.has(e.index)
     );
     if (!enc) return;
     this.shownEncounters.add(enc.index);
-    this.showEncounterOverlay(enc);
+    this.launchEncounterCombat(enc, enc.isBoss ? () => this.render() : undefined);
   }
 
-  /** Modal de encuentro: enemigo + poderes + BATALLAR; al pulsar revela el resultado. */
-  private showEncounterOverlay(enc: EncounterResult, onClose?: () => void): void {
+  /** Lanza la escena PvpCombat como overlay para VISUALIZAR la batalla del
+   *  encuentro (el `BattleResult` ya lo resolvió la sim). Pausa la run mientras
+   *  dura y la reanuda al pulsar CONTINUAR. */
+  private launchEncounterCombat(enc: EncounterResult, onClose?: () => void): void {
     this.busy = true;
-    const w = this.scale.width;
-    const h = this.scale.height;
-    const cx = w / 2;
-    const cy = h * 0.42;
-    const layer = this.add.container(0, 0).setDepth(700);
-    const dim = this.add.rectangle(0, 0, w, h, 0x15110e, 0.84).setOrigin(0, 0).setInteractive();
-    const panel = retroPanel(this, cx, cy, CONTENT_W, 430, COLORS.card);
-    const heading = enc.isBoss ? 'JEFE FINAL' : `ENCUENTRO ${enc.index + 1} / 4`;
-    const tint = enc.isBoss ? COLORS.danger : COLORS.affOFE;
-    layer.add([
-      dim,
-      panel,
-      titleText(this, cx, cy - 175, heading, 18, enc.isBoss ? COLORS.danger : COLORS.ink),
-      portrait(this, cx, cy - 78, enc.enemyName, 124, tint),
-      titleText(this, cx, cy + 4, enc.enemyName, 18, COLORS.ink),
-      bodyText(this, cx, cy + 44, `PODER ENEMIGO ${enc.enemyPower}    ·    TU PODER ${enc.playerPower}`, 14, COLORS.ink),
-    ]);
-    const btn = retroButton(this, cx, cy + 150, 'BATALLAR', {
-      variant: 'maroon',
-      width: CONTENT_W - 80,
-      height: 74,
-      fontSize: 18,
-      onClick: () => {
-        btn.destroy();
-        this.revealEncounter(enc, layer, () => {
-          layer.destroy();
-          this.busy = false;
-          onClose?.();
-        });
-      },
-    });
-    layer.add(btn);
-  }
-
-  /** Revela VICTORIA/DERROTA dentro del modal (la moral ya viene aplicada por la sim). */
-  private revealEncounter(enc: EncounterResult, layer: Phaser.GameObjects.Container, done: () => void): void {
-    const cx = this.scale.width / 2;
-    const cy = this.scale.height * 0.42;
-    const col = enc.won ? COLORS.gold : COLORS.danger;
-    outcomeBanner(this, enc.won ? '¡VICTORIA!' : 'DERROTA', col, !enc.won);
-    const verdict = enc.won
+    // El dado del turno ya se asentó: lo retiramos para no dejarlo flotando al
+    // reanudar la run tras la batalla.
+    this.roller?.destroy();
+    this.roller = undefined;
+    const heading = enc.isBoss ? 'JEFE FINAL' : `ENCUENTRO ${enc.index + 1} / ${ENCOUNTER_COUNT}`;
+    // La moral ya viene aplicada por la sim; el texto solo explica la consecuencia.
+    const note = enc.won
       ? enc.isBoss
         ? '¡Jefe derrotado! +10 a TODAS las estadísticas al acuñar.'
         : 'Encuentro superado. La moral del equipo sube.'
       : enc.isBoss
         ? 'El jefe te supera. Pierdes el bono de +10 (conservas a tu general).'
-        : 'Derrota. ¡LA MORAL DEL EQUIPO SE DESPLOMA!';
-    layer.add(
-      bodyText(this, cx, cy + 92, verdict, 14, enc.won ? 0x2e6b2e : COLORS.danger)
-        .setWordWrapWidth(CONTENT_W - 110)
-        .setAlign('center')
-    );
-    layer.add(
-      retroButton(this, cx, cy + 165, 'CONTINUAR', {
-        variant: enc.won ? 'lime' : 'grey',
-        width: CONTENT_W - 80,
-        height: 64,
-        fontSize: 16,
-        onClick: done,
-      })
-    );
+        : 'Derrota. ¡La moral del equipo se desploma!';
+
+    this.scene.launch('PvpCombat', {
+      battleResult: enc.battle,
+      rewards: { goldEarned: 0, scoreEarned: 0 },
+      title: heading,
+      note,
+      onDone: () => {
+        this.scene.stop('PvpCombat');
+        this.scene.resume();
+        this.busy = false;
+        onClose?.();
+      },
+    });
+    this.scene.pause();
   }
 
   private async submit(): Promise<void> {

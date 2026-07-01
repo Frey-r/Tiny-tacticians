@@ -139,6 +139,8 @@ export class PvpCombatScene extends Phaser.Scene {
   private rewards!: { goldEarned: number; scoreEarned: number };
   private returnScene = 'Home';
   private note?: string;
+  private title = '⚔️ Simulador de Batalla ⚔️';
+  private onDone?: () => void;
 
   private cx = GAME_W / 2;
   private bandY = 700;
@@ -169,6 +171,8 @@ export class PvpCombatScene extends Phaser.Scene {
     this.rewards = data.rewards || { goldEarned: 0, scoreEarned: 0 };
     this.returnScene = data.returnScene || 'Home';
     this.note = data.note;
+    this.title = data.title ?? '⚔️ Simulador de Batalla ⚔️';
+    this.onDone = data.onDone;
     this.finished = false;
     this.units = { blue: [], red: [] };
     this.aliveCount = { blue: ARMY_SIZE, red: ARMY_SIZE };
@@ -225,7 +229,7 @@ export class PvpCombatScene extends Phaser.Scene {
     ensureBattleAnims(this);
     this.cameras.main.setBackgroundColor(COLORS.screen);
     const cx = this.cx;
-    headerBar(this, cx, 92, CONTENT_W, '⚔️ Simulador de Batalla ⚔️', 14);
+    headerBar(this, cx, 92, CONTENT_W, this.title, 14);
 
     const a = this.battle.generalA;
     const b = this.battle.generalB;
@@ -506,7 +510,9 @@ export class PvpCombatScene extends Phaser.Scene {
     this.setHp.blue(this.curHpFrac.blue);
     this.tweenHp(loserSide, 0);
 
-    void loadUserData();
+    // En modo overlay (encuentro de run) nada cambió en el servidor: evitamos el
+    // refresco de datos, que sí hace falta tras un PvP con recompensas.
+    if (!this.onDone) void loadUserData();
     this.showResult(winnerSide === 'blue');
   }
 
@@ -542,12 +548,19 @@ export class PvpCombatScene extends Phaser.Scene {
         onClick: () => this.openLog(),
       })
     );
+    const finishLabel = this.onDone
+      ? 'CONTINUAR'
+      : this.returnScene === 'Home'
+        ? 'IR AL INICIO'
+        : 'VOLVER A LA ARENA';
     panel.add(
-      retroButton(this, cx, 1158, this.returnScene === 'Home' ? 'IR AL INICIO' : 'VOLVER A LA ARENA', {
+      retroButton(this, cx, 1158, finishLabel, {
         width: 560,
         height: 54,
         fontSize: 14,
-        onClick: () => this.scene.start(this.returnScene),
+        // Encuentro de run: devuelve el control a la escena que lo lanzó (que
+        // detendrá esta escena y reanudará la run). PvP: cambia de escena.
+        onClick: () => (this.onDone ? this.onDone() : this.scene.start(this.returnScene)),
       })
     );
   }
