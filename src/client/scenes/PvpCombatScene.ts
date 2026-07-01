@@ -25,9 +25,9 @@ import { CommanderPanel, abilityMeta } from '../ui/abilityCast.ts';
 import { openScrollPanel } from '../ui/scrollPanel.ts';
 import { grassField } from '../ui/terrain.ts';
 import { loadUserData } from '../state.ts';
-import { deriveArmy, animKey, RANGED, UNIT_SIZE, ARMY_SIZE } from '../combat/army.ts';
+import { deriveArmy, animKey, isRangedUnit, isSyntheticEnemy, factionForEnemy, UNIT_SIZE, ARMY_SIZE } from '../combat/army.ts';
 import { queueBattleAssets, ensureBattleAnims } from '../combat/combatAssets.ts';
-import type { UnitType, UnitColor } from '../combat/army.ts';
+import type { UnitType, UnitColor, Faction } from '../combat/army.ts';
 import type { BattleResult, BattleRound, General } from '../../shared/types/index.ts';
 
 interface CombatData {
@@ -46,6 +46,8 @@ interface CombatData {
 class BattleUnit {
   readonly type: UnitType;
   readonly color: UnitColor;
+  readonly skin: Faction;
+  readonly ranged: boolean;
   readonly sprite: Phaser.GameObjects.Sprite;
   readonly homeX: number;
   readonly homeY: number;
@@ -53,19 +55,21 @@ class BattleUnit {
   private scene: Phaser.Scene;
   private atkToggle = false;
 
-  constructor(scene: Phaser.Scene, type: UnitType, color: UnitColor, x: number, y: number) {
+  constructor(scene: Phaser.Scene, type: UnitType, color: UnitColor, skin: Faction, x: number, y: number) {
     this.scene = scene;
     this.type = type;
     this.color = color;
+    this.skin = skin;
+    this.ranged = isRangedUnit(type, skin);
     this.homeX = x;
     this.homeY = y;
     const size = UNIT_SIZE[type];
     this.sprite = scene.add
-      .sprite(x, y, animKey(type, color, 'idle'))
+      .sprite(x, y, animKey(type, skin, 'idle'))
       .setOrigin(0.5, 0.82)
       .setDisplaySize(size, size)
       .setFlipX(color === 'red');
-    this.sprite.play(animKey(type, color, 'idle'));
+    this.sprite.play(animKey(type, skin, 'idle'));
   }
 
   get facing(): number {
@@ -73,7 +77,7 @@ class BattleUnit {
   }
 
   idle(): void {
-    if (this.alive) this.sprite.play(animKey(this.type, this.color, 'idle'), true);
+    if (this.alive) this.sprite.play(animKey(this.type, this.skin, 'idle'), true);
   }
 
   meleeAttack(onHit: () => void): void {
@@ -81,12 +85,15 @@ class BattleUnit {
       onHit();
       return;
     }
+    // No todo warrior tiene 2 variantes de ataque (p. ej. Bear/Thief/Minotaur
+    // solo tienen una): el toggle se activa según qué anims se registraron
+    // para este (tipo, facción), no según el tipo a secas.
     let action = 'attack';
-    if (this.type === 'warrior') {
+    if (this.scene.anims.exists(animKey(this.type, this.skin, 'attack1'))) {
       this.atkToggle = !this.atkToggle;
       action = this.atkToggle ? 'attack1' : 'attack2';
     }
-    this.sprite.play(animKey(this.type, this.color, action));
+    this.sprite.play(animKey(this.type, this.skin, action));
     this.scene.tweens.add({
       targets: this.sprite,
       x: this.homeX + this.facing * 46,
@@ -103,7 +110,7 @@ class BattleUnit {
       onRelease();
       return;
     }
-    this.sprite.play(animKey(this.type, this.color, 'shoot'));
+    this.sprite.play(animKey(this.type, this.skin, 'shoot'));
     this.scene.time.delayedCall(220, onRelease);
     this.sprite.once('animationcomplete', () => this.idle());
   }
@@ -302,16 +309,21 @@ export class PvpCombatScene extends Phaser.Scene {
     const dir = side === 'blue' ? -1 : 1; // blue a la izquierda
     const frontX = this.cx + dir * 120;
     const backX = this.cx + dir * 252;
-    const army = deriveArmy(side === 'blue' ? this.battle.generalA : this.battle.generalB);
-    const melee = army.filter((t) => !RANGED[t]);
-    const ranged = army.filter((t) => RANGED[t]);
+    const general = side === 'blue' ? this.battle.generalA : this.battle.generalB;
+    // El atacante siempre es humano ('blue'); el defensor es 'red' salvo que
+    // sea un enemigo sintético (encuentro de run / reto diario), en cuyo caso
+    // se pinta con una facción de criaturas derivada de sus stats.
+    const skin: Faction = side === 'blue' ? 'blue' : isSyntheticEnemy(general) ? factionForEnemy(general) : 'red';
+    const army = deriveArmy(general);
+    const melee = army.filter((t) => !isRangedUnit(t, skin));
+    const ranged = army.filter((t) => isRangedUnit(t, skin));
 
     const place = (list: UnitType[], baseX: number) => {
       const n = list.length;
       list.forEach((t, i) => {
         const y = this.bandY + (i - (n - 1) / 2) * 70;
         const x = baseX + (i % 2 === 0 ? 0 : dir * 26);
-        this.units[side].push(new BattleUnit(this, t, side, x, y));
+        this.units[side].push(new BattleUnit(this, t, side, skin, x, y));
       });
     };
     place(melee, frontX);
@@ -337,7 +349,7 @@ export class PvpCombatScene extends Phaser.Scene {
     const impact = () => this.applyImpact(r, defSide, target);
 
     if (attacker) {
-      if (attacker.type === 'archer') attacker.shoot(() => this.fireArrow(attacker, target, impact));
+      if (attacker.ranged) attacker.shoot(() => this.fireArrow(attacker, target, impact));
       else attacker.meleeAttack(impact);
     } else {
       this.time.delayedCall(200, impact);

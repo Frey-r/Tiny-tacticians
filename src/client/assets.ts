@@ -273,4 +273,164 @@ export const TERRAIN_SHEETS: AnimSheet[] = [
   { texKey: 'terrainSheep', url: sheepIdleSheet, frameW: 128, frameH: 128, frames: 6, frameRate: 6, repeat: -1 },
 ];
 
+/* ============================================================
+   Enemigos de encuentro (PvE) — facciones de criaturas del pack
+   `Enemies` para cuando `deriveArmy` reparte un General SINTÉTICO
+   (encuentros de run, combate diario). Cada facción cubre los 3
+   roles warrior/lancer/archer con una criatura propia; el PvP real
+   entre jugadores sigue usando Blue/Red Units sin tocarse (ver
+   `combat/army.ts` § factionForEnemy/isSyntheticEnemy).
+   Solo se necesitan `idle` + ataque(s): `run`/`guard`/`dead` del
+   pack humano tampoco se usan hoy en PvpCombatScene.
+   ============================================================ */
+// Solo las carpetas de criaturas usadas por ENEMY_UNIT_DEFS (el pack trae
+// además edificios/props/facciones que no usamos: importar todo con `**`
+// infla el bundle ~100 PNG de más). El patrón de `import.meta.glob` debe ser
+// un literal estático, así que se listan una a una.
+const enemyModules: Record<string, string> = {
+  ...import.meta.glob<string>('./assets/sprites/Enemies/Enemies/Thief/*.png', { eager: true, import: 'default' }),
+  ...import.meta.glob<string>('./assets/sprites/Enemies/Enemies/Skull/*.png', { eager: true, import: 'default' }),
+  ...import.meta.glob<string>('./assets/sprites/Enemies/Enemies/Gnoll/*.png', { eager: true, import: 'default' }),
+  ...import.meta.glob<string>('./assets/sprites/Enemies/Enemies/Minotaur/*.png', { eager: true, import: 'default' }),
+  ...import.meta.glob<string>('./assets/sprites/Enemies/Enemies/Goblin Raiders/Spear Goblin/*.png', {
+    eager: true,
+    import: 'default',
+  }),
+  ...import.meta.glob<string>('./assets/sprites/Enemies/Enemies/Goblin Raiders/Pig Rider Spear Goblin/*.png', {
+    eager: true,
+    import: 'default',
+  }),
+  ...import.meta.glob<string>('./assets/sprites/Enemies/Enemies/Goblin Raiders/Hex Shaman/*.png', {
+    eager: true,
+    import: 'default',
+  }),
+  ...import.meta.glob<string>('./assets/sprites/Enemies/Enemies/Caveborn/Bear/*.png', { eager: true, import: 'default' }),
+  ...import.meta.glob<string>('./assets/sprites/Enemies/Enemies/Caveborn/Turtle/*.png', {
+    eager: true,
+    import: 'default',
+  }),
+  ...import.meta.glob<string>('./assets/sprites/Enemies/Enemies/Caveborn/Lizard/*.png', {
+    eager: true,
+    import: 'default',
+  }),
+};
+
+function enemyUrl(folder: string, file: string): string {
+  const key = `./assets/sprites/Enemies/Enemies/${folder}/${file}`;
+  const url = enemyModules[key];
+  if (!url) throw new Error(`Asset de enemigo no encontrado: ${key}`);
+  return url;
+}
+
+export type EnemyFaction = 'goblin' | 'beast' | 'undead' | 'warlord';
+
+interface EnemyActionMeta { file: string; frameH: number; frames: number; frameRate: number; repeat: number }
+interface EnemyUnitDef { folder: string; idle: EnemyActionMeta; attacks: Record<string, EnemyActionMeta> }
+
+const ENEMY_UNIT_DEFS: Record<EnemyFaction, Record<'warrior' | 'archer' | 'lancer', EnemyUnitDef>> = {
+  // Partida de Saqueadores / enemigos OFE-dominantes.
+  goblin: {
+    warrior: {
+      folder: 'Goblin Raiders/Spear Goblin',
+      idle: { file: 'Spear Goblin_Idle.png', frameH: 256, frames: 8, frameRate: 8, repeat: -1 },
+      attacks: {
+        attack1: { file: 'Spear Goblin_Attack Fast.png', frameH: 256, frames: 7, frameRate: 14, repeat: 0 },
+        attack2: { file: 'Spear Goblin_Attack Strong.png', frameH: 256, frames: 8, frameRate: 14, repeat: 0 },
+      },
+    },
+    lancer: {
+      folder: 'Goblin Raiders/Pig Rider Spear Goblin',
+      idle: { file: 'Pig Rider_Idle.png', frameH: 256, frames: 8, frameRate: 8, repeat: -1 },
+      attacks: { attack: { file: 'Pig Rider_Attack.png', frameH: 256, frames: 7, frameRate: 14, repeat: 0 } },
+    },
+    archer: {
+      folder: 'Goblin Raiders/Hex Shaman',
+      idle: { file: 'Hex Shaman_Idle.png', frameH: 192, frames: 8, frameRate: 8, repeat: -1 },
+      attacks: { shoot: { file: 'Hex Shaman_Attack.png', frameH: 192, frames: 10, frameRate: 16, repeat: 0 } },
+    },
+  },
+  // Compañía Mercenaria / enemigos DEF-dominantes.
+  beast: {
+    warrior: {
+      folder: 'Caveborn/Bear',
+      idle: { file: 'Bear_Idle.png', frameH: 256, frames: 8, frameRate: 8, repeat: -1 },
+      attacks: { attack: { file: 'Bear_Attack.png', frameH: 256, frames: 9, frameRate: 14, repeat: 0 } },
+    },
+    lancer: {
+      folder: 'Caveborn/Turtle',
+      idle: { file: 'Turtle_Idle.png', frameH: 320, frames: 10, frameRate: 8, repeat: -1 },
+      attacks: { attack: { file: 'Turtle_Attack.png', frameH: 320, frames: 10, frameRate: 14, repeat: 0 } },
+    },
+    archer: {
+      folder: 'Caveborn/Lizard',
+      idle: { file: 'Lizard_Idle.png', frameH: 192, frames: 7, frameRate: 8, repeat: -1 },
+      attacks: { attack: { file: 'Lizard_Attack.png', frameH: 192, frames: 9, frameRate: 14, repeat: 0 } },
+    },
+  },
+  // Vanguardia Enemiga / enemigos MAN-dominantes.
+  undead: {
+    warrior: {
+      folder: 'Thief',
+      idle: { file: 'Thief_Idle.png', frameH: 192, frames: 6, frameRate: 8, repeat: -1 },
+      attacks: { attack: { file: 'Thief_Attack.png', frameH: 192, frames: 6, frameRate: 14, repeat: 0 } },
+    },
+    lancer: {
+      folder: 'Skull',
+      idle: { file: 'Skull_Idle.png', frameH: 192, frames: 8, frameRate: 8, repeat: -1 },
+      attacks: { attack: { file: 'Skull_Attack.png', frameH: 192, frames: 7, frameRate: 14, repeat: 0 } },
+    },
+    archer: {
+      folder: 'Gnoll',
+      idle: { file: 'Gnoll_Idle.png', frameH: 192, frames: 6, frameRate: 8, repeat: -1 },
+      attacks: { shoot: { file: 'Gnoll_Throw.png', frameH: 192, frames: 8, frameRate: 16, repeat: 0 } },
+    },
+  },
+  // Señor de la Guerra (jefe, power >= BOSS_POWER) — Minotaur en los 3 roles;
+  // el rol lancer reutiliza la pose de guardia como idle para dar variedad.
+  warlord: {
+    warrior: {
+      folder: 'Minotaur',
+      idle: { file: 'Minotaur_Idle.png', frameH: 320, frames: 16, frameRate: 6, repeat: -1 },
+      attacks: { attack: { file: 'Minotaur_Attack.png', frameH: 320, frames: 12, frameRate: 14, repeat: 0 } },
+    },
+    lancer: {
+      folder: 'Minotaur',
+      idle: { file: 'Minotaur_Guard.png', frameH: 320, frames: 11, frameRate: 6, repeat: -1 },
+      attacks: { attack: { file: 'Minotaur_Attack.png', frameH: 320, frames: 12, frameRate: 14, repeat: 0 } },
+    },
+    archer: {
+      folder: 'Minotaur',
+      idle: { file: 'Minotaur_Idle.png', frameH: 320, frames: 16, frameRate: 6, repeat: -1 },
+      attacks: { attack: { file: 'Minotaur_Attack.png', frameH: 320, frames: 12, frameRate: 14, repeat: 0 } },
+    },
+  },
+};
+
+function capitalize(s: string): string {
+  return s[0].toUpperCase() + s.slice(1);
+}
+
+// Mismo patrón de `cu_<tipo><Facción>_<acción>` que UNIT_SHEETS, para que
+// combatAssets.ts los encole/cachee sin distinguir origen humano/criatura.
+export const ENEMY_UNIT_SHEETS: AnimSheet[] = [];
+for (const faction of Object.keys(ENEMY_UNIT_DEFS) as EnemyFaction[]) {
+  const cap = capitalize(faction);
+  for (const type of ['warrior', 'lancer', 'archer'] as const) {
+    const def = ENEMY_UNIT_DEFS[faction][type];
+    const push = (action: string, m: EnemyActionMeta) => {
+      ENEMY_UNIT_SHEETS.push({
+        texKey: `cu_${type}${cap}_${action}`,
+        url: enemyUrl(def.folder, m.file),
+        frameW: m.frameH,
+        frameH: m.frameH,
+        frames: m.frames,
+        frameRate: m.frameRate,
+        repeat: m.repeat,
+      });
+    };
+    push('idle', def.idle);
+    for (const [action, m] of Object.entries(def.attacks)) push(action, m);
+  }
+}
+
 export { UI };

@@ -8,9 +8,9 @@
    y por animación, que son globales en Phaser).
    ============================================================ */
 import Phaser from 'phaser';
-import { UNIT_SHEETS, FX_SHEETS, ARROW, type AnimSheet } from '../assets.ts';
+import { UNIT_SHEETS, ENEMY_UNIT_SHEETS, FX_SHEETS, ARROW, type AnimSheet } from '../assets.ts';
 
-const BATTLE_SHEETS: AnimSheet[] = [...UNIT_SHEETS, ...FX_SHEETS];
+const BATTLE_SHEETS: AnimSheet[] = [...UNIT_SHEETS, ...ENEMY_UNIT_SHEETS, ...FX_SHEETS];
 
 /**
  * Encola en el loader de la escena las texturas de batalla que aún no

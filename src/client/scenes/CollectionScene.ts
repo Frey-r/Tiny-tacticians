@@ -20,60 +20,10 @@ import { store, loadUserData } from '../state.ts';
 import { api } from '../api.ts';
 import { tierLetter } from '../util.ts';
 import type { BattleResult, Consejero } from '../../shared/types/index.ts';
-import { consejeroDef, COMBAT_ABILITIES, RUN_EFFECTS, CONSEJERO_CATALOG } from '../../shared/sim/index.ts';
+import { consejeroDef, CONSEJERO_CATALOG } from '../../shared/sim/index.ts';
+import { openConsejeroModal, TRAIN_STYLE_INFO } from '../ui/consejeroDetail.ts';
 
 const MAX_LEVEL = 10;
-
-/** Texto descriptivo de cada arquetipo de entrenamiento (ver decisions/0012). */
-const TRAIN_STYLE_INFO: Record<string, { name: string; desc: string; next: string }> = {
-  maestro: {
-    name: 'Maestro de Armas',
-    desc: 'Polariza el dado: más críticos, pero también más fallos.',
-    next: 'Subir nivel ⇒ más bonus de crítico (y dado de ventaja a nivel alto).',
-  },
-  alquimista: {
-    name: 'Alquimista',
-    desc: 'Estabiliza: casi nunca falla, pero limita el crítico.',
-    next: 'Subir nivel ⇒ entrena con un piso de dado más alto (más estable).',
-  },
-  intendente: {
-    name: 'Intendente',
-    desc: 'Eficiencia: reembolsa energía y regala una stat secundaria.',
-    next: 'Subir nivel ⇒ más reembolso de energía y stat secundaria.',
-  },
-};
-
-/** Qué hace cada efecto de run cuando el consejero está activo. */
-const RUN_EFFECT_DESC: Record<string, string> = {
-  energiaPrevista: 'Al activarse, reembolsa energía del turno.',
-  vinculoFervido: 'Al activarse, gana afinidad (bond) extra.',
-  botinDeGuerra: 'En un entrenamiento con éxito, otorga una stat secundaria.',
-  segundaIntencion: 'Reduce el riesgo de fallo ese turno.',
-  ojoCritico: 'Aumenta la probabilidad de crítico ese turno.',
-};
-
-/** Lectura corta del efecto de combate de una habilidad. */
-function abilityEffectText(eff: { type: string; amount?: number; pct?: number }): string {
-  switch (eff.type) {
-    case 'bonusDamage':
-      return `+${eff.amount} daño al atacar`;
-    case 'reduceIncoming':
-      return `−${eff.amount} daño recibido`;
-    case 'blockPct':
-      return `bloquea ${Math.round((eff.pct ?? 0) * 100)}% del golpe`;
-    case 'ignoreMitigation':
-      return 'ignora la mitigación de la defensa rival';
-    default:
-      return '';
-  }
-}
-
-/** Etiqueta del perfil de activación según su sesgo. */
-function activationLabel(bias: number): string {
-  if (bias >= 0.1) return `Fiable — se activa seguido (+${Math.round(bias * 100)}%)`;
-  if (bias <= -0.1) return `Volátil — rara vez activo (${Math.round(bias * 100)}%)`;
-  return 'Estándar — sigue la rampa 5%→75%';
-}
 
 export class CollectionScene extends Phaser.Scene {
   private tab: 'consejeros' | 'generales' = 'consejeros';
@@ -209,92 +159,31 @@ export class CollectionScene extends Phaser.Scene {
   private openUpgrade(adv: Consejero): void {
     this.modal?.destroy();
 
-    // Detalle de gameplay resuelto desde el catálogo compartido por id.
     const def = consejeroDef(adv.id);
-    const ability = COMBAT_ABILITIES[def.abilityKey];
     const style = TRAIN_STYLE_INFO[def.trainStyle];
-    const runEff = def.runEffectId ? RUN_EFFECTS[def.runEffectId] : null;
-
     const cost = adv.level * 150;
     const gold = store.profile?.gold ?? 0;
     const maxed = adv.level >= MAX_LEVEL;
 
-    const m = this.add.container(0, 0).setDepth(100);
-    this.modal = m;
-    const mx = GAME_W / 2;
-    const my = GAME_H / 2;
-    const panelW = 640;
-    const panelH = 880;
-    const top = my - panelH / 2;
-    const leftX = mx - panelW / 2 + 40;
-    const contentW = panelW - 80;
-
-    m.add(this.add.rectangle(0, 0, GAME_W, GAME_H, 0x0a0806, 0.72).setOrigin(0, 0).setInteractive());
-    m.add(retroPanel(this, mx, my, panelW, panelH, COLORS.panelDark));
-
-    // Cabecera: retrato + nombre + nivel/afinidad
-    m.add(portrait(this, mx, top + 100, adv.id, 108, affinityColor(adv.affinity)));
-    m.add(titleText(this, mx, top + 188, adv.name, 18, COLORS.cream));
-    m.add(bodyText(this, mx, top + 222, `Nivel ${adv.level}/${MAX_LEVEL} · Afinidad ${adv.affinity}`, 15, COLORS.cream));
-    m.add(this.add.rectangle(mx, top + 248, contentW, 2, COLORS.border).setOrigin(0.5));
-
-    // Filas de detalle (cursor vertical, alineadas a la izquierda).
-    let ty = top + 268;
-    const addRow = (label: string, value: string, valColor: number = COLORS.cream): void => {
-      m.add(titleText(this, leftX, ty, label, 12, COLORS.gold).setOrigin(0, 0));
-      ty += 24;
-      const v = bodyText(this, leftX, ty, value, 14, valColor).setOrigin(0, 0);
-      v.setWordWrapWidth(contentW, true);
-      m.add(v);
-      ty += v.height + 14;
-    };
-
-    const kindEs = ability?.kind === 'defender' ? 'Defensa' : 'Ataque';
-    addRow(
-      'HABILIDAD DE COMBATE',
-      ability ? `${ability.ability} · ${kindEs} — ${abilityEffectText(ability.effect)}` : '—'
-    );
-    addRow('ARQUETIPO DE ENTRENAMIENTO', `${style.name} — ${style.desc}`);
-    addRow(
-      'EFECTO DE RUN',
-      runEff ? `${runEff.label} — ${RUN_EFFECT_DESC[def.runEffectId!] ?? ''}` : 'Ninguno'
-    );
-    addRow('ACTIVACIÓN', activationLabel(def.activationBias));
-
-    // Pie: mejora del próximo nivel + costo + botones.
-    m.add(
-      bodyText(this, mx, top + panelH - 196, maxed ? 'Nivel máximo alcanzado.' : style.next, 13, COLORS.cream)
-        .setWordWrapWidth(contentW)
-        .setAlign('center')
-    );
-    m.add(
-      titleText(
-        this,
-        mx,
-        top + panelH - 138,
-        maxed ? 'NIVEL MÁXIMO' : `Costo: ${cost} oro`,
-        16,
-        maxed || gold >= cost ? COLORS.gold : COLORS.danger
-      )
-    );
-    m.add(
-      retroButton(this, mx - 145, top + panelH - 66, 'MEJORAR', {
-        width: 240,
-        fontSize: 15,
-        enabled: !maxed && gold >= cost,
-        onClick: () => this.levelUp(adv),
-      })
-    );
-    m.add(
-      retroButton(this, mx + 145, top + panelH - 66, 'CERRAR', {
-        variant: 'grey',
-        width: 240,
-        fontSize: 15,
-        onClick: () => {
-          this.modal?.destroy();
+    this.modal = openConsejeroModal(
+      this,
+      {
+        id: adv.id,
+        name: adv.name,
+        affinity: adv.affinity,
+        subtitle: `Nivel ${adv.level}/${MAX_LEVEL} · Afinidad ${adv.affinity}`,
+      },
+      {
+        hint: maxed ? 'Nivel máximo alcanzado.' : style.next,
+        costText: maxed ? 'NIVEL MÁXIMO' : `Costo: ${cost} oro`,
+        costColor: maxed || gold >= cost ? COLORS.gold : COLORS.danger,
+        primaryLabel: 'MEJORAR',
+        primaryEnabled: !maxed && gold >= cost,
+        onPrimary: () => this.levelUp(adv),
+        onClose: () => {
           this.modal = undefined;
         },
-      })
+      }
     );
   }
 
