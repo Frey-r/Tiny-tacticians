@@ -53,9 +53,30 @@ export class HomeScene extends Phaser.Scene {
         })
         .setOrigin(1, 0.5)
     );
-    bar.add(
-      retroButton(this, GAME_W - PAD - 30, 56, '', { variant: 'grey', iconKey: 'icon_gear', iconSize: 28, width: 60, height: 56 })
-    );
+    const musicBtn = retroButton(this, GAME_W - PAD - 30, 56, '', {
+      variant: 'grey',
+      iconKey: 'icon_music',
+      iconSize: 28,
+      width: 60,
+      height: 56,
+      onClick: () => {
+        this.sound.mute = !this.sound.mute;
+        localStorage.setItem('game_muted', this.sound.mute ? 'true' : 'false');
+        updateMusicBtn();
+      }
+    });
+
+    const updateMusicBtn = () => {
+      const iconImg = musicBtn.getData('icon') as Phaser.GameObjects.Image | undefined;
+      if (iconImg) {
+        const isMuted = this.sound.mute;
+        iconImg.setAlpha(isMuted ? 0.4 : 1.0);
+        iconImg.setTint(isMuted ? 0x888888 : 0xffffff);
+      }
+    };
+
+    updateMusicBtn();
+    bar.add(musicBtn);
     this.statusBar = bar;
   }
 

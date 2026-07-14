@@ -5,7 +5,8 @@
    ============================================================ */
 import Phaser from 'phaser';
 import { COLORS, hex, GAME_W, GAME_H, CONTENT_W, TEXT_RES, fontPx, FONT } from '../ui/theme.ts';
-import { ICON, SPRITE, AVATARS, PANEL, TERRAIN, TERRAIN_SHEETS, DICE } from '../assets.ts';
+import { ICON, SPRITE, AVATARS, PANEL, TERRAIN, TERRAIN_SHEETS, DICE, MUSIC, UI_BAKES } from '../assets.ts';
+import { bakeUiTextures } from '../ui/bake.ts';
 
 // Spritesheets animados (frames horizontales). Tamaños reales del pack:
 // warrior 1536x192 (8x192), archer 1152x192 (6x192), lancer 3840x320 (12x320).
@@ -75,9 +76,22 @@ export class BootScene extends Phaser.Scene {
     }
     // Avatares: clave 'avatar_<n>' (ver avatarKeyFor).
     AVATARS.forEach((url, i) => this.load.image(`avatar_${i}`, url));
+    // Botones/barras "slots" del pack: se cargan crudos y se recomponen
+    // en texturas nine-slice en create() (ver ui/bake.ts).
+    for (const spec of UI_BAKES) this.load.image(spec.rawKey, spec.url);
+
+    // Música de fondo. `?noaudio` la omite: decodeAudioData cuelga el loader
+    // en Chrome headless y bloquea la verificación por screenshot.
+    if (!new URLSearchParams(location.search).has('noaudio')) {
+      this.load.audio('background_music', MUSIC.background);
+    }
   }
 
   create(): void {
+    // Recomponer los parches de botones/barras antes de que cualquier
+    // escena construya widgets (retroButton/hpBar dependen de ellas).
+    bakeUiTextures(this);
+
     for (const [key, sheet] of Object.entries(SHEETS)) {
       this.anims.create({
         key: `${key}_idle`,
@@ -97,6 +111,15 @@ export class BootScene extends Phaser.Scene {
         repeat: s.repeat,
       });
     }
+
+    // Inicializar configuración de mute
+    const isMuted = localStorage.getItem('game_muted') === 'true';
+    this.sound.mute = isMuted;
+
+    if (this.cache.audio.exists('background_music') && !this.sound.get('background_music')) {
+      this.sound.play('background_music', { loop: true, volume: 0.35 });
+    }
+
     this.scene.start('Home');
   }
 

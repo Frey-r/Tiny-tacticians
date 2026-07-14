@@ -68,12 +68,112 @@ import regularPaper from './assets/sprites/UI Elements/UI Elements/Papers/Regula
 import specialPaper from './assets/sprites/UI Elements/UI Elements/Papers/SpecialPaper.png';
 import banner from './assets/sprites/UI Elements/UI Elements/Banners/Banner.png';
 import dicesSprite from './assets/sprites/UI Elements/UI Dices/dices_sprite.png';
+import backgroundMusic from './assets/music/backgroud music.mp3';
 
 export const PANEL = {
   paper: regularPaper,
   paperSpecial: specialPaper,
   banner,
 } as const;
+
+/* ---- Botones y barras texturizadas (pack "slots" -> nine-slice) --
+   Los PNG del pack NO son texturas contiguas: cada botón grande es un
+   grid 3x3 de parches (y cada barra 3x1) separados por huecos
+   transparentes. BootScene los recompone vía bakeUiTextures() en
+   texturas contiguas listas para nine-slice. Los rangos de parches
+   están medidos píxel a píxel (regiones con alpha > 10). */
+import btnBigBlueReg from './assets/sprites/UI Elements/UI Elements/Buttons/BigBlueButton_Regular.png';
+import btnBigBluePre from './assets/sprites/UI Elements/UI Elements/Buttons/BigBlueButton_Pressed.png';
+import btnBigRedReg from './assets/sprites/UI Elements/UI Elements/Buttons/BigRedButton_Regular.png';
+import btnBigRedPre from './assets/sprites/UI Elements/UI Elements/Buttons/BigRedButton_Pressed.png';
+import btnSqBlueReg from './assets/sprites/UI Elements/UI Elements/Buttons/SmallBlueSquareButton_Regular.png';
+import btnSqBluePre from './assets/sprites/UI Elements/UI Elements/Buttons/SmallBlueSquareButton_Pressed.png';
+import barSmallBase from './assets/sprites/UI Elements/UI Elements/Bars/SmallBar_Base.png';
+import barSmallFill from './assets/sprites/UI Elements/UI Elements/Bars/SmallBar_Fill.png';
+
+/** Rango [desde, hasta] (incluyente) de píxeles con contenido en el PNG. */
+type Span = [number, number];
+
+export interface UiBakeSpec {
+  url: string;
+  rawKey: string; // clave temporal de la imagen fuente en el loader
+  outKey: string; // clave de la textura contigua resultante
+  cols: Span[]; // columnas de parches (1 = imagen contigua, 3 = slots)
+  rows: Span[];
+  desaturate?: number; // 0..1: mezcla hacia gris (variante neutral)
+  brighten?: number; // multiplicador post-desaturado (rellenos tintables)
+}
+
+// Grid 3x3 de los botones grandes (320x320). El estado Pressed tiene
+// parches distintos: el arte queda "hundido" (borde superior más corto).
+const BIG_REG = {
+  cols: [[19, 63], [128, 191], [256, 300]] as Span[],
+  rows: [[17, 63], [128, 191], [256, 302]] as Span[],
+};
+const BIG_PRE = {
+  cols: [[14, 63], [128, 191], [256, 305]] as Span[],
+  rows: [[28, 63], [128, 191], [256, 304]] as Span[],
+};
+// El botón cuadrado pequeño (128x128) sí es contiguo: solo se recorta.
+const SQ_REG = { cols: [[19, 108]] as Span[], rows: [[17, 110]] as Span[] };
+const SQ_PRE = { cols: [[14, 113]] as Span[], rows: [[28, 112]] as Span[] };
+
+export const UI_BAKES: UiBakeSpec[] = [
+  { url: btnBigBlueReg, rawKey: 'raw_btnPrimary', outKey: 'btnPrimary', ...BIG_REG },
+  { url: btnBigBluePre, rawKey: 'raw_btnPrimaryPre', outKey: 'btnPrimaryPressed', ...BIG_PRE },
+  { url: btnBigRedReg, rawKey: 'raw_btnDanger', outKey: 'btnDanger', ...BIG_REG },
+  { url: btnBigRedPre, rawKey: 'raw_btnDangerPre', outKey: 'btnDangerPressed', ...BIG_PRE },
+  // Neutral = cuadrado azul desaturado (piedra), para no competir con el CTA teal.
+  { url: btnSqBlueReg, rawKey: 'raw_btnNeutral', outKey: 'btnNeutral', ...SQ_REG, desaturate: 0.55 },
+  { url: btnSqBluePre, rawKey: 'raw_btnNeutralPre', outKey: 'btnNeutralPressed', ...SQ_PRE, desaturate: 0.55 },
+  // Barra pequeña: base 3-slice + tira de relleno. El relleno nativo es rojo;
+  // se hornea en escala de grises aclarada para poder tintarlo (verde/rojo).
+  { url: barSmallBase, rawKey: 'raw_barSmall', outKey: 'barSmall', cols: [[49, 63], [128, 191], [256, 270]], rows: [[22, 40]] },
+  { url: barSmallFill, rawKey: 'raw_barFill', outKey: 'barFill', cols: [[0, 63]], rows: [[30, 32]], desaturate: 1, brighten: 2.1 },
+];
+
+export interface ButtonSkin { key: string; l: number; r: number; t: number; b: number }
+
+const spanW = (s: Span): number => s[1] - s[0] + 1;
+// Insets nine-slice = tamaño de los parches de esquina de la textura horneada.
+const nineOf = (key: string, g: { cols: Span[]; rows: Span[] }): ButtonSkin => ({
+  key,
+  l: spanW(g.cols[0]),
+  r: spanW(g.cols[g.cols.length - 1]),
+  t: spanW(g.rows[0]),
+  b: spanW(g.rows[g.rows.length - 1]),
+});
+
+export const BTN_SKIN = {
+  primary: { regular: nineOf('btnPrimary', BIG_REG), pressed: nineOf('btnPrimaryPressed', BIG_PRE) },
+  danger: { regular: nineOf('btnDanger', BIG_REG), pressed: nineOf('btnDangerPressed', BIG_PRE) },
+  // Contiguo: los insets cubren la esquina redondeada + borde pintado.
+  neutral: {
+    regular: { key: 'btnNeutral', l: 26, r: 26, t: 24, b: 28 },
+    pressed: { key: 'btnNeutralPressed', l: 26, r: 26, t: 22, b: 26 },
+  },
+} as const;
+
+/** Los botones se renderizan a mitad de escala (texturas ~2x el diseño). */
+export const BTN_TEX_SCALE = 0.5;
+
+/** Métricas de la barra pequeña horneada (94x19: tapas de 15px). */
+export const BAR_SKIN = {
+  base: { key: 'barSmall', l: 15, r: 15 },
+  fill: 'barFill',
+  nativeH: 19,
+  /** Surco interior (filas 8..16: interior + bisel tan) que cubre el relleno;
+   *  así la parte vacía muestra el bisel y la llena es un bloque sólido. */
+  innerTop: 8,
+  innerBottom: 17,
+  /** Margen X del relleno respecto de cada extremo de la barra. */
+  innerInset: 11,
+} as const;
+
+export const MUSIC = {
+  background: backgroundMusic,
+} as const;
+
 
 /* ---- Dados (spritesheet 168x86 = 6 col x 3 filas, frame 28x28).
    Fila superior (frames 0..5) = caras de pips 1..6 (verificado por

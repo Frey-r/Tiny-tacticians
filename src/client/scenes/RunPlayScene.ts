@@ -120,7 +120,6 @@ export class RunPlayScene extends Phaser.Scene {
   create(): void {
     this.cameras.main.setBackgroundColor(COLORS.screen);
     screenTopbar(this, `Campamento: ${this.run.name}`, () => this.scene.start('Home'));
-    this.add.image(GAME_W - PAD - 22, 52, 'icon_gear').setDisplaySize(40, 40).setAlpha(0.9);
     this.render();
   }
 

@@ -6,7 +6,8 @@
    ============================================================ */
 import Phaser from 'phaser';
 import { COLORS, FONT, hex, PAD, TOUCH_H, TEXT_RES, fontPx } from './theme.ts';
-import { avatarKeyFor } from '../assets.ts';
+import { avatarKeyFor, BTN_SKIN, BTN_TEX_SCALE, BAR_SKIN } from '../assets.ts';
+import type { ButtonSkin } from '../assets.ts';
 
 type Scene = Phaser.Scene;
 
@@ -32,7 +33,8 @@ export function portrait(
   return container;
 }
 
-/** Barra de HP (verde -> rojo bajo 30%). Origen izquierdo. */
+/** Barra de HP texturizada (pack Bars: marco con remate dorado + tira de
+ *  relleno tintable). Verde -> rojo bajo 30%. Origen izquierdo. */
 export function hpBar(
   scene: Scene,
   x: number,
@@ -40,16 +42,24 @@ export function hpBar(
   w: number,
   pct: number
 ): { container: Phaser.GameObjects.Container; set: (p: number) => void } {
-  const h = 18;
+  const h = BAR_SKIN.nativeH; // alto nativo de la textura: sin distorsión
   const container = scene.add.container(x, y);
-  const back = scene.add.rectangle(0, 0, w, h, 0x3a2f22).setOrigin(0, 0.5).setStrokeStyle(2, COLORS.border);
-  const fill = scene.add.rectangle(2, 0, Math.max(0, (w - 4) * pct), h - 6, 0x4caf50).setOrigin(0, 0.5);
-  container.add([back, fill]);
+  const base = scene.add
+    .nineslice(0, 0, BAR_SKIN.base.key, undefined, w, h, BAR_SKIN.base.l, BAR_SKIN.base.r)
+    .setOrigin(0, 0.5);
+  const innerW = w - BAR_SKIN.innerInset * 2;
+  const innerH = BAR_SKIN.innerBottom - BAR_SKIN.innerTop;
+  // Centro del surco interior respecto del centro vertical de la barra.
+  const innerY = BAR_SKIN.innerTop + innerH / 2 - h / 2;
+  const fill = scene.add.image(BAR_SKIN.innerInset, innerY, BAR_SKIN.fill).setOrigin(0, 0.5);
+  container.add([base, fill]);
   const set = (p: number) => {
     const c = Phaser.Math.Clamp(p, 0, 1);
-    fill.width = Math.max(0, (w - 4) * c);
-    fill.setFillStyle(c < 0.3 ? COLORS.danger : 0x4caf50);
+    fill.setVisible(c > 0.005);
+    fill.setDisplaySize(Math.max(1, innerW * c), innerH);
+    fill.setTint(c < 0.3 ? COLORS.danger : 0x4caf50);
   };
+  set(pct);
   return { container, set };
 }
 
@@ -207,7 +217,17 @@ export interface ButtonOpts {
   iconSize?: number;
 }
 
-/** Botón biselado estilo CTA. Origen centrado en (x,y). */
+/** Nine-slice de botón al tamaño de diseño (las texturas van a ~2x y se
+ *  renderizan a mitad de escala para que las esquinas no devoren el botón). */
+function buttonSlice(scene: Scene, skin: ButtonSkin, w: number, h: number): Phaser.GameObjects.NineSlice {
+  const s = BTN_TEX_SCALE;
+  return scene.add
+    .nineslice(0, 0, skin.key, undefined, w / s, h / s, skin.l, skin.r, skin.t, skin.b)
+    .setScale(s);
+}
+
+/** Botón texturizado del pack UI (teal = acción, rojo = peligro, piedra =
+ *  neutral) con arte real de estado pulsado. Origen centrado en (x,y). */
 export function retroButton(
   scene: Scene,
   x: number,
@@ -240,43 +260,37 @@ export function retroButton(
   const h = opts.height ?? Math.max(TOUCH_H, px * 2 + 26);
 
   const enabled = opts.enabled !== false;
-  const fill = !enabled
-    ? 0x6c675c
-    : opts.variant === 'grey'
-      ? COLORS.card
-      : opts.variant === 'maroon'
-        ? COLORS.maroon
-        : COLORS.lime;
-  const topColor =
-    opts.variant === 'grey' ? COLORS.cardHi : opts.variant === 'maroon' ? COLORS.maroonTop : COLORS.limeTop;
-  const edgeColor =
-    opts.variant === 'grey' ? COLORS.cardLo : opts.variant === 'maroon' ? COLORS.maroonEdge : COLORS.limeEdge;
-  const textColor = opts.variant === 'lime' || opts.variant === 'grey' ? COLORS.ink : COLORS.cream;
+  const skin =
+    opts.variant === 'maroon' ? BTN_SKIN.danger : opts.variant === 'grey' ? BTN_SKIN.neutral : BTN_SKIN.primary;
 
   const container = scene.add.container(x, y);
 
-  const shadow = scene.add.rectangle(4, 4, w, h, 0x000000, 0.45);
-  const body = scene.add.rectangle(0, 0, w, h, fill).setStrokeStyle(3, COLORS.border);
-  const topEdge = scene.add.rectangle(0, -h / 2 + 3, w - 6, 4, topColor);
-  const bottomEdge = scene.add.rectangle(0, h / 2 - 4, w - 6, 5, edgeColor);
-  
-  const press = scene.add.container(0, 0, [body, topEdge, bottomEdge]);
+  // Sombra con la silueta real del botón (misma textura tintada a negro:
+  // en Phaser 4 el modo FILL sustituye el color respetando el alpha).
+  const shadow = buttonSlice(scene, skin.regular, w, h)
+    .setPosition(3, 5)
+    .setTint(0x000000)
+    .setTintMode(Phaser.TintModes.FILL)
+    .setAlpha(0.3);
+  const bodyReg = buttonSlice(scene, skin.regular, w, h);
+  const bodyPre = buttonSlice(scene, skin.pressed, w, h).setVisible(false);
+
+  const press = scene.add.container(0, 0, [bodyReg, bodyPre]);
 
   if (hasIcon) {
     const iconImg = scene.add.image(0, 0, opts.iconKey!).setDisplaySize(iconSize, iconSize);
-    if (!enabled) iconImg.setTint(0x46423a);
+    if (!enabled) iconImg.setTint(0x8a8a8a).setAlpha(0.8);
     press.add(iconImg);
+    // Referencia estable para quien necesite retocar el icono (p.ej. mute).
+    container.setData('icon', iconImg);
   } else {
-    const isLightText = !enabled || opts.variant === 'maroon';
-    const shadowColor = isLightText ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.25)';
-    const shadowOffset = isLightText ? 2 : 1;
-    const text = titleText(scene, 0, 0, label, fontSize, enabled ? textColor : 0x46423a).setShadow(
-      shadowOffset,
-      shadowOffset,
-      shadowColor,
+    const text = titleText(scene, 0, 0, label, fontSize, enabled ? COLORS.cream : 0xb8b0a0).setShadow(
       0,
+      2,
+      'rgba(0,0,0,0.55)',
+      2,
       true,
-      isLightText
+      true
     );
     press.add(text);
   }
@@ -295,23 +309,30 @@ export function retroButton(
       Phaser.Geom.Rectangle.Contains
     );
     if (container.input) container.input.cursor = 'pointer';
-    container.on('pointerover', () => body.setFillStyle(opts.variant === 'lime' ? COLORS.limeHover : opts.variant === 'grey' ? COLORS.card2 : COLORS.maroonTop));
-    container.on('pointerout', () => {
-      body.setFillStyle(fill);
+    const release = () => {
+      bodyReg.setVisible(true);
+      bodyPre.setVisible(false);
       press.setPosition(0, 0);
       shadow.setVisible(true);
+    };
+    container.on('pointerover', () => container.setScale(1.03));
+    container.on('pointerout', () => {
+      container.setScale(1);
+      release();
     });
     container.on('pointerdown', () => {
-      press.setPosition(3, 3);
+      bodyReg.setVisible(false);
+      bodyPre.setVisible(true);
+      press.setPosition(0, 2);
       shadow.setVisible(false);
     });
     container.on('pointerup', () => {
-      press.setPosition(0, 0);
-      shadow.setVisible(true);
+      release();
       opts.onClick?.();
     });
   } else {
-    container.setAlpha(0.85);
+    bodyReg.setTint(0x8f8f8f);
+    container.setAlpha(0.9);
   }
 
   return container;
@@ -356,9 +377,36 @@ export function screenTopbar(
     height: 60,
     onClick: onBack,
   });
-  container.add([bar, back]);
+
+  // Botón de música para silenciar/activar el sonido global.
+  const music = retroButton(scene, w - (PAD + 40), 56, '', {
+    variant: 'grey',
+    iconKey: 'icon_music',
+    iconSize: 28,
+    width: 72,
+    height: 60,
+    onClick: () => {
+      scene.sound.mute = !scene.sound.mute;
+      localStorage.setItem('game_muted', scene.sound.mute ? 'true' : 'false');
+      updateMusicBtn();
+    },
+  });
+
+  const updateMusicBtn = () => {
+    const iconImg = music.getData('icon') as Phaser.GameObjects.Image | undefined;
+    if (iconImg) {
+      const isMuted = scene.sound.mute;
+      iconImg.setAlpha(isMuted ? 0.4 : 1.0);
+      iconImg.setTint(isMuted ? 0x888888 : 0xffffff);
+    }
+  };
+
+  updateMusicBtn();
+
+  container.add([bar, back, music]);
   return container;
 }
+
 
 /** Pequeña píldora de recurso (icono + valor). Origen izquierdo. */
 export function resourcePill(
