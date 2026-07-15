@@ -179,7 +179,7 @@ export function participantsBestFor(participants: Consejero[], choice: Affinity)
   const candidates = matches.length ? matches : participants;
   if (candidates.length === 0) {
     // Entrenamiento sin asistencia: asesor sintético nivel 0 SIN afinidad (base mínima = 5).
-    return { id: '', name: '(sin asesor)', affinity: choice === 'OFE' ? 'DEF' : 'OFE', level: 0 };
+    return { id: '', name: '(no advisor)', affinity: choice === 'OFE' ? 'DEF' : 'OFE', level: 0 };
   }
   return candidates.reduce((best, a) => (a.level > best.level ? a : best), candidates[0]);
 }
@@ -350,12 +350,12 @@ export interface AbilityThreshold {
 }
 
 export const ABILITY_THRESHOLDS: AbilityThreshold[] = [
-  { name: 'Furia de Combate', stat: 'ofe', threshold: 30 },
-  { name: 'Carga Devastadora', stat: 'ofe', threshold: 60 },
-  { name: 'Baluarte Férreo', stat: 'def', threshold: 30 },
-  { name: 'Escudo Inquebrantable', stat: 'def', threshold: 60 },
-  { name: 'Estratega Decidido', stat: 'man', threshold: 30 },
-  { name: 'Grito de Mando', stat: 'man', threshold: 60 },
+  { name: 'Battle Fury', stat: 'ofe', threshold: 30 },
+  { name: 'Devastating Charge', stat: 'ofe', threshold: 60 },
+  { name: 'Iron Bulwark', stat: 'def', threshold: 30 },
+  { name: 'Unbreakable Shield', stat: 'def', threshold: 60 },
+  { name: 'Resolute Strategist', stat: 'man', threshold: 30 },
+  { name: 'Command Shout', stat: 'man', threshold: 60 },
 ];
 
 export function deriveAbilities(stats: GeneralStats): string[] {
@@ -391,141 +391,141 @@ export interface BranchingEvent {
 export const BRANCHING_EVENTS: BranchingEvent[] = [
   {
     id: 'storm',
-    name: 'Tormenta en el campo',
-    description: 'Una tormenta cae sobre el campamento. ¿Entrenas bajo la lluvia o te refugias?',
+    name: 'Storm on the Field',
+    description: 'A storm rolls over the camp. Do you train in the rain or take shelter?',
     branches: [
       {
-        label: 'Entrenar igual (50%)',
+        label: 'Train anyway (50%)',
         successProb: 0.5,
         apply: (s, success) => {
           if (success) {
             s.man += 8;
-            return '¡Los reclutas se crecen ante la adversidad! +8 Mando.';
+            return 'The recruits rise to the challenge! +8 Command.';
           }
           s.ofe -= 3;
           s.def -= 3;
           s.man -= 3;
-          return 'El barro y el frío pasan factura. -3 a todo.';
+          return 'The mud and cold take their toll. -3 to all.';
         },
       },
       {
-        label: 'Refugiarse (seguro)',
+        label: 'Take shelter (safe)',
         successProb: 0,
         apply: (s) => {
           s.def += 2;
-          return 'Reforzáis las tiendas y empalizadas. +2 Defensiva.';
+          return 'You reinforce the tents and palisades. +2 Defense.';
         },
       },
     ],
   },
   {
     id: 'merchant',
-    name: 'Mercader errante',
-    description: 'Un mercader ofrece una reliquia de dudoso origen a buen precio.',
+    name: 'Wandering Merchant',
+    description: 'A merchant offers a relic of dubious origin at a good price.',
     branches: [
       {
-        label: 'Comprar la reliquia (50%)',
+        label: 'Buy the relic (50%)',
         successProb: 0.5,
         apply: (s, success, p) => {
           if (success) {
             const k = (['ofe', 'def', 'man'] as const)[p.nextInt(0, 2)];
             s[k] += 7;
-            return `¡Reliquia auténtica! +7 ${k.toUpperCase()}.`;
+            return `A genuine relic! +7 ${k.toUpperCase()}.`;
           }
-          return 'Era una baratija sin valor. No pasa nada.';
+          return 'It was a worthless trinket. No harm done.';
         },
       },
       {
-        label: 'Regatear chatarra (seguro)',
+        label: 'Haggle for scrap (safe)',
         successProb: 0,
         apply: (s) => {
           s.ofe += 2;
-          return 'Compras algunas armas usadas. +2 Ofensiva.';
+          return 'You buy some used weapons. +2 Offense.';
         },
       },
     ],
   },
   {
     id: 'duel',
-    name: 'Duelo de honor',
-    description: 'Un oficial rival reta a tu general a un duelo a primera sangre.',
+    name: 'Duel of Honor',
+    description: 'A rival officer challenges your general to a duel to first blood.',
     branches: [
       {
-        label: 'Aceptar el duelo (60%)',
+        label: 'Accept the duel (60%)',
         successProb: 0.6,
         apply: (s, success) => {
           if (success) {
             s.ofe += 7;
-            return '¡Victoria gloriosa ante la tropa! +7 Ofensiva.';
+            return 'A glorious victory before the troops! +7 Offense.';
           }
           s.def -= 4;
-          return 'Una herida humillante. -4 Defensiva.';
+          return 'A humiliating wound. -4 Defense.';
         },
       },
       {
-        label: 'Declinar con honor (seguro)',
+        label: 'Decline with honor (safe)',
         successProb: 0,
         apply: (s) => {
           s.man += 3;
-          return 'Mantienes la disciplina y el respeto. +3 Mando.';
+          return 'You keep discipline and respect. +3 Command.';
         },
       },
     ],
   },
   {
     id: 'supplies',
-    name: 'Convoy de suministros',
-    description: 'Llega un convoy cargado. ¿Banquete para la moral o raciones medidas?',
+    name: 'Supply Convoy',
+    description: 'A loaded convoy arrives. A feast for morale, or measured rations?',
     branches: [
       {
-        label: 'Banquete (55%)',
+        label: 'Feast (55%)',
         successProb: 0.55,
         apply: (s, success) => {
           if (success) {
             s.ofe += 4;
             s.def += 4;
-            return '¡La moral se dispara! +4 Ofensiva y +4 Defensiva.';
+            return 'Morale soars! +4 Offense and +4 Defense.';
           }
           s.man -= 3;
-          return 'Exceso y resaca en el cuartel. -3 Mando.';
+          return 'Excess and a hangover in the barracks. -3 Command.';
         },
       },
       {
-        label: 'Raciones medidas (seguro)',
+        label: 'Measured rations (safe)',
         successProb: 0,
         apply: (s) => {
           s.ofe += 2;
           s.def += 2;
-          return 'Disciplina alimentaria. +2 Ofensiva y +2 Defensiva.';
+          return 'Dietary discipline. +2 Offense and +2 Defense.';
         },
       },
     ],
   },
   {
     id: 'veteran',
-    name: 'Veterano de guerra',
-    description: 'Un viejo veterano ofrece enseñar una táctica secreta... a su manera.',
+    name: 'War Veteran',
+    description: 'An old veteran offers to teach a secret tactic... his own way.',
     branches: [
       {
-        label: 'Entrenamiento brutal (50%)',
+        label: 'Brutal training (50%)',
         successProb: 0.5,
         apply: (s, success) => {
           if (success) {
             s.man += 6;
             s.def += 2;
-            return '¡Lección magistral! +6 Mando y +2 Defensiva.';
+            return 'A masterful lesson! +6 Command and +2 Defense.';
           }
           s.ofe -= 2;
           s.def -= 2;
-          return 'El método deja secuelas. -2 Ofensiva y -2 Defensiva.';
+          return 'The method leaves scars. -2 Offense and -2 Defense.';
         },
       },
       {
-        label: 'Charla amistosa (seguro)',
+        label: 'Friendly chat (safe)',
         successProb: 0,
         apply: (s) => {
           s.man += 3;
-          return 'Sabios consejos junto al fuego. +3 Mando.';
+          return 'Wise counsel by the fire. +3 Command.';
         },
       },
     ],

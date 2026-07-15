@@ -36,9 +36,9 @@ export class CollectionScene extends Phaser.Scene {
 
   async create(): Promise<void> {
     this.cameras.main.setBackgroundColor(COLORS.screen);
-    screenTopbar(this, 'Colección', () => this.scene.start('Home'));
+    screenTopbar(this, 'Collection', () => this.scene.start('Home'));
     if (store.advisors.length === 0 && store.generals.length === 0) {
-      const hide = loadingOverlay(this, 'CARGANDO...');
+      const hide = loadingOverlay(this, 'LOADING...');
       try {
         await loadUserData();
       } catch {
@@ -55,7 +55,7 @@ export class CollectionScene extends Phaser.Scene {
     this.dyn = c;
 
     c.add(
-      retroButton(this, GAME_W / 2 - 220, 152, '[ CONSEJEROS ]', {
+      retroButton(this, GAME_W / 2 - 220, 152, '[ ADVISORS ]', {
         variant: this.tab === 'consejeros' ? 'lime' : 'grey',
         width: 416,
         height: 70,
@@ -67,7 +67,7 @@ export class CollectionScene extends Phaser.Scene {
       })
     );
     c.add(
-      retroButton(this, GAME_W / 2 + 220, 152, '[ GENERALES ]', {
+      retroButton(this, GAME_W / 2 + 220, 152, '[ GENERALS ]', {
         variant: this.tab === 'generales' ? 'lime' : 'grey',
         width: 416,
         height: 70,
@@ -85,7 +85,7 @@ export class CollectionScene extends Phaser.Scene {
 
   private renderAdvisors(c: Phaser.GameObjects.Container): void {
     const cx0 = GAME_W / 2;
-    c.add(bodyText(this, cx0, 208, `Consejeros ${store.advisors.length} / ${CONSEJERO_CATALOG.length}`, 18, COLORS.cream));
+    c.add(bodyText(this, cx0, 208, `Advisors ${store.advisors.length} / ${CONSEJERO_CATALOG.length}`, 18, COLORS.cream));
     const cols = 3;
     const W = 270;
     const H = 184;
@@ -105,7 +105,7 @@ export class CollectionScene extends Phaser.Scene {
       c.add(card);
     });
     c.add(
-      retroButton(this, cx0, 1148, 'RECLUTAR CONSEJERO', {
+      retroButton(this, cx0, 1148, 'RECRUIT ADVISOR', {
         variant: 'lime',
         width: CONTENT_W,
         height: 80,
@@ -113,14 +113,14 @@ export class CollectionScene extends Phaser.Scene {
         onClick: () => this.scene.start('Reclutamiento'),
       })
     );
-    c.add(bodyText(this, cx0, GAME_H - 44, 'Toca un consejero para ver su detalle y subir su nivel · Recluta nuevos con contratos.', 14, COLORS.cream));
+    c.add(bodyText(this, cx0, GAME_H - 44, 'Tap an advisor to see details and level up · Recruit new ones with contracts.', 14, COLORS.cream));
   }
 
   private renderGenerals(c: Phaser.GameObjects.Container): void {
     const cx = GAME_W / 2;
-    c.add(bodyText(this, cx, 224, `Generales acuñados (${store.generals.length})`, 18, COLORS.cream));
+    c.add(bodyText(this, cx, 224, `Minted generals (${store.generals.length})`, 18, COLORS.cream));
     if (store.generals.length === 0) {
-      c.add(bodyText(this, cx, 420, 'Sin generales.\n¡Corre una run para reclutar!', 17, COLORS.cream).setAlign('center'));
+      c.add(bodyText(this, cx, 420, 'No generals.\nRun a campaign to recruit!', 17, COLORS.cream).setAlign('center'));
       return;
     }
     const panelW = CONTENT_W;
@@ -135,9 +135,9 @@ export class CollectionScene extends Phaser.Scene {
       );
       // Número de poder grande a la derecha (estilo maqueta).
       c.add(titleText(this, rightX, ry - 38, String(g.power), 24, COLORS.gold).setOrigin(1, 0.5));
-      c.add(bodyText(this, rightX, ry - 10, 'PODER', 12, COLORS.ink).setOrigin(1, 0.5));
+      c.add(bodyText(this, rightX, ry - 10, 'POWER', 12, COLORS.ink).setOrigin(1, 0.5));
       c.add(
-        retroButton(this, cx - 138, ry + 40, 'COMBATIR', {
+        retroButton(this, cx - 138, ry + 40, 'FIGHT', {
           width: 330,
           height: 58,
           fontSize: 15,
@@ -145,7 +145,7 @@ export class CollectionScene extends Phaser.Scene {
         })
       );
       c.add(
-        retroButton(this, cx + 200, ry + 40, 'A LA ARENA', {
+        retroButton(this, cx + 200, ry + 40, 'TO ARENA', {
           variant: 'grey',
           width: 250,
           height: 58,
@@ -171,13 +171,13 @@ export class CollectionScene extends Phaser.Scene {
         id: adv.id,
         name: adv.name,
         affinity: adv.affinity,
-        subtitle: `Nivel ${adv.level}/${MAX_LEVEL} · Afinidad ${adv.affinity}`,
+        subtitle: `Level ${adv.level}/${MAX_LEVEL} · Affinity ${adv.affinity}`,
       },
       {
-        hint: maxed ? 'Nivel máximo alcanzado.' : style.next,
-        costText: maxed ? 'NIVEL MÁXIMO' : `Costo: ${cost} oro`,
+        hint: maxed ? 'Max level reached.' : style.next,
+        costText: maxed ? 'MAX LEVEL' : `Cost: ${cost} gold`,
         costColor: maxed || gold >= cost ? COLORS.gold : COLORS.danger,
-        primaryLabel: 'MEJORAR',
+        primaryLabel: 'UPGRADE',
         primaryEnabled: !maxed && gold >= cost,
         onPrimary: () => this.levelUp(adv),
         onClose: () => {
@@ -195,23 +195,23 @@ export class CollectionScene extends Phaser.Scene {
       await api.post(`/api/consejeros/${adv.id}/level`);
       await loadUserData();
       hide();
-      toast(this, `${adv.name.split(' ')[0]} subió de nivel`, COLORS.lime);
+      toast(this, `${adv.name.split(' ')[0]} leveled up`, COLORS.lime);
       this.render();
     } catch (err: any) {
       hide();
-      toast(this, err.message || 'Error al mejorar', COLORS.danger);
+      toast(this, err.message || 'Upgrade failed', COLORS.danger);
     }
   }
 
   private async battle(attackerId: string): Promise<void> {
-    const hide = loadingOverlay(this, 'BUSCANDO RIVAL...');
+    const hide = loadingOverlay(this, 'FINDING OPPONENT...');
     try {
       const res = await api.post<{ battleResult: BattleResult; rewards: any }>('/api/pvp/battle', { attackerId });
       hide();
       this.scene.start('PvpCombat', { battleResult: res.battleResult, rewards: res.rewards });
     } catch (err: any) {
       hide();
-      toast(this, err.message || 'Error al combatir', COLORS.danger);
+      toast(this, err.message || 'Battle failed', COLORS.danger);
     }
   }
 }

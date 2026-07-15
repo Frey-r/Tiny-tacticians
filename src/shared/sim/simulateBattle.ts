@@ -101,31 +101,31 @@ export function simulateBattle(seed: string, generalA: General, generalB: Genera
     const mitigation = Math.floor(activeDefender.stats.def * 0.4);
 
     let damage = Math.max(2, baseDamage - mitigation);
-    let logMsg = `${activeAttacker.name} ataca a ${activeDefender.name}.`;
+    let logMsg = `${activeAttacker.name} attacks ${activeDefender.name}.`;
     let crit = false;
     let blocked = false;
     const abilityProcs: string[] = [];
 
     // 2. Process Attacker Abilities
-    // Carga Devastadora: ~20% (un dado) de daño doble
-    if (activeAttacker.abilities.includes('Carga Devastadora')) {
+    // Devastating Charge: ~20% (one die) for double damage
+    if (activeAttacker.abilities.includes('Devastating Charge')) {
       if (procs(prng, 0.2)) {
         damage *= 2;
         crit = true;
-        abilityProcs.push('Carga Devastadora');
-        logMsg += ` ¡Activa [Carga Devastadora] y causa el doble de daño!`;
+        abilityProcs.push('Devastating Charge');
+        logMsg += ` Triggers [Devastating Charge] and deals double damage!`;
       }
-    } else if (activeAttacker.abilities.includes('Furia de Combate')) {
+    } else if (activeAttacker.abilities.includes('Battle Fury')) {
       damage += 5;
-      abilityProcs.push('Furia de Combate');
-      logMsg += ` ¡Bono por [Furia de Combate] (+5 daño)!`;
+      abilityProcs.push('Battle Fury');
+      logMsg += ` [Battle Fury] bonus (+5 damage)!`;
     }
 
-    // Grito de Mando: ~15% (un dado) de +8 daño
-    if (activeAttacker.abilities.includes('Grito de Mando') && procs(prng, 0.15)) {
+    // Command Shout: ~15% (one die) for +8 damage
+    if (activeAttacker.abilities.includes('Command Shout') && procs(prng, 0.15)) {
       damage += 8;
-      abilityProcs.push('Grito de Mando');
-      logMsg += ` ¡El [Grito de Mando] amedrenta al rival (+8 daño)!`;
+      abilityProcs.push('Command Shout');
+      logMsg += ` [Command Shout] rattles the foe (+8 damage)!`;
     }
 
     // Habilidades de consejero del ATACANTE (desbloqueadas por afinidad; proc 1/6 vía dado).
@@ -134,23 +134,23 @@ export function simulateBattle(seed: string, generalA: General, generalB: Genera
       if (procs(prng, CONSEJERO_PROC_CHANCE)) {
         damage = applyAttackerEffect(damage, ab.effect, mitigation);
         abilityProcs.push(ab.ability);
-        logMsg += ` ¡${activeAttacker.name} activa [${ab.ability}]!`;
+        logMsg += ` ${activeAttacker.name} triggers [${ab.ability}]!`;
       }
     }
 
     // 3. Process Defender Abilities
-    // Escudo Inquebrantable: ~20% (un dado) de bloquear el 80% del daño
-    if (activeDefender.abilities.includes('Escudo Inquebrantable')) {
+    // Unbreakable Shield: ~20% (one die) to block 80% of the damage
+    if (activeDefender.abilities.includes('Unbreakable Shield')) {
       if (procs(prng, 0.2)) {
         damage = Math.max(1, Math.floor(damage * 0.2));
         blocked = true;
-        abilityProcs.push('Escudo Inquebrantable');
-        logMsg += ` ¡${activeDefender.name} activa [Escudo Inquebrantable] y bloquea el 80% del golpe!`;
+        abilityProcs.push('Unbreakable Shield');
+        logMsg += ` ${activeDefender.name} raises [Unbreakable Shield] and blocks 80% of the hit!`;
       }
-    } else if (activeDefender.abilities.includes('Baluarte Férreo')) {
+    } else if (activeDefender.abilities.includes('Iron Bulwark')) {
       damage = Math.max(1, damage - 4);
-      abilityProcs.push('Baluarte Férreo');
-      logMsg += ` ¡${activeDefender.name} absorbe daño con [Baluarte Férreo] (-4 daño)!`;
+      abilityProcs.push('Iron Bulwark');
+      logMsg += ` ${activeDefender.name} absorbs damage with [Iron Bulwark] (-4 damage)!`;
     }
 
     // Habilidades de consejero del DEFENSOR (desbloqueadas por afinidad; proc 1/6 vía dado).
@@ -160,7 +160,7 @@ export function simulateBattle(seed: string, generalA: General, generalB: Genera
         damage = applyDefenderEffect(damage, ab.effect);
         blocked = true;
         abilityProcs.push(ab.ability);
-        logMsg += ` ¡${activeDefender.name} resiste con [${ab.ability}]!`;
+        logMsg += ` ${activeDefender.name} resists with [${ab.ability}]!`;
       }
     }
 
@@ -168,7 +168,7 @@ export function simulateBattle(seed: string, generalA: General, generalB: Genera
     activeDefenderHp = Math.max(0, activeDefenderHp - damage);
     const lethal = activeDefenderHp <= 0;
 
-    logMsg += ` Daño infligido: ${damage}. HP de ${activeDefender.name} restante: ${activeDefenderHp}/${activeDefenderMaxHp}.`;
+    logMsg += ` Damage dealt: ${damage}. ${activeDefender.name} HP left: ${activeDefenderHp}/${activeDefenderMaxHp}.`;
 
     rounds.push({
       round: roundNum,

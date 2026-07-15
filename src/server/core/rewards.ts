@@ -149,7 +149,7 @@ export async function adjustGold(userId: string, amount: number): Promise<number
     // Conflict, retry
   }
 
-  throw new Error('CONCURRENCY_ERROR: Conflicto al actualizar tu saldo de oro. Inténtalo de nuevo.');
+  throw new Error('CONCURRENCY_ERROR: Conflict updating your gold balance. Try again.');
 }
 
 export async function recordBattleRewards(
@@ -201,7 +201,7 @@ export async function levelConsejero(
     // Tope de nivel máximo (meta-progression.spec §Consejero Leveling sad path).
     if (currentLevel >= MAX_CONSEJERO_LEVEL) {
       await redis.unwatch();
-      throw new Error(`MAX_LEVEL_REACHED: El consejero ya está en su nivel máximo (${MAX_CONSEJERO_LEVEL}).`);
+      throw new Error(`MAX_LEVEL_REACHED: The advisor is already at max level (${MAX_CONSEJERO_LEVEL}).`);
     }
 
     // Cost formula: level * 150 gold
@@ -225,5 +225,5 @@ export async function levelConsejero(
     }
   }
 
-  throw new Error('CONCURRENCY_ERROR: Conflicto al subir de nivel al consejero. Inténtalo de nuevo.');
+  throw new Error('CONCURRENCY_ERROR: Conflict leveling up the advisor. Try again.');
 }

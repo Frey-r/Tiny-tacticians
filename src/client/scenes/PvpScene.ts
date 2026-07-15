@@ -43,7 +43,7 @@ export class PvpScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(COLORS.screen);
     screenTopbar(this, 'PvP / Arena', () => this.scene.start('Home'));
     if (store.generals.length === 0) {
-      const hide = loadingOverlay(this, 'CARGANDO...');
+      const hide = loadingOverlay(this, 'LOADING...');
       try {
         await loadUserData();
       } catch {
@@ -73,12 +73,12 @@ export class PvpScene extends Phaser.Scene {
     if (store.generals.length === 0) {
       const cy = 600;
       c.add(retroPanel(this, GAME_W / 2, cy, CONTENT_W, 360, COLORS.card));
-      c.add(titleText(this, GAME_W / 2, cy - 140, 'Sin generales\ntodavía', 18, COLORS.ink).setAlign('center'));
+      c.add(titleText(this, GAME_W / 2, cy - 140, 'No generals\nyet', 18, COLORS.ink).setAlign('center'));
       c.add(
-        bodyText(this, GAME_W / 2, cy - 10, 'Necesitas un comandante entrenado\npara entrar al PvP.', 14, COLORS.ink).setAlign('center')
+        bodyText(this, GAME_W / 2, cy - 10, 'You need a trained commander\nto enter PvP.', 14, COLORS.ink).setAlign('center')
       );
       c.add(
-        retroButton(this, GAME_W / 2, cy + 110, 'CORRER RUN', {
+        retroButton(this, GAME_W / 2, cy + 110, 'START RUN', {
           width: CONTENT_W - 80,
           height: 76,
           fontSize: 16,
@@ -101,11 +101,11 @@ export class PvpScene extends Phaser.Scene {
     const cx = GAME_W / 2;
     const panelLeft = cx - CONTENT_W / 2;
     const txtX = panelLeft + 200;
-    c.add(titleText(this, cx, 152, 'Tu General', 18, COLORS.cream));
+    c.add(titleText(this, cx, 152, 'Your General', 18, COLORS.cream));
     c.add(retroPanel(this, cx, 300, CONTENT_W, 240, COLORS.card));
     c.add(portrait(this, panelLeft + 104, 300, g.id, 132, affinityColor('OFE')));
     c.add(bodyText(this, txtX, 250, g.name, 20, COLORS.ink).setOrigin(0, 0.5));
-    c.add(bodyText(this, txtX, 294, `Tier ${tierLetter(g.tier)}  ·  Poder ${g.power}`, 15, COLORS.ink).setOrigin(0, 0.5));
+    c.add(bodyText(this, txtX, 294, `Tier ${tierLetter(g.tier)}  ·  Power ${g.power}`, 15, COLORS.ink).setOrigin(0, 0.5));
     c.add(
       bodyText(this, txtX, 334, `OFE ${g.stats.ofe} / DEF ${g.stats.def} / MAN ${g.stats.man}`, 14, COLORS.ink).setOrigin(0, 0.5)
     );
@@ -134,7 +134,7 @@ export class PvpScene extends Phaser.Scene {
     }
 
     c.add(
-      retroButton(this, cx, 560, 'BUSCAR RIVAL', {
+      retroButton(this, cx, 560, 'FIND OPPONENT', {
         width: CONTENT_W,
         height: 80,
         fontSize: 18,
@@ -153,7 +153,7 @@ export class PvpScene extends Phaser.Scene {
     c.add(retroPanel(this, cx, 930, CONTENT_W, 500, COLORS.card));
 
     if (this.lb.length === 0) {
-      c.add(bodyText(this, cx, 900, 'Sin clasificación todavía.', 13, COLORS.ink));
+      c.add(bodyText(this, cx, 900, 'No rankings yet.', 13, COLORS.ink));
     } else {
       this.lb.forEach((row, idx) => {
         const rank = (this.lbPage - 1) * 8 + idx + 1;
@@ -175,7 +175,7 @@ export class PvpScene extends Phaser.Scene {
         onClick: () => this.changePage(this.lbPage - 1),
       })
     );
-    c.add(bodyText(this, cx, 1150, `Pág ${this.lbPage}`, 13, COLORS.cream));
+    c.add(bodyText(this, cx, 1150, `Pg ${this.lbPage}`, 13, COLORS.cream));
     c.add(
       retroButton(this, cx + 120, 1150, '▶', {
         variant: 'grey',
@@ -204,14 +204,14 @@ export class PvpScene extends Phaser.Scene {
   }
 
   private async startBattle(attackerId: string): Promise<void> {
-    const hide = loadingOverlay(this, 'BUSCANDO RIVAL...');
+    const hide = loadingOverlay(this, 'FINDING OPPONENT...');
     try {
       const res = await api.post<{ battleResult: BattleResult; rewards: any }>('/api/pvp/battle', { attackerId });
       hide();
       this.scene.start('PvpCombat', { battleResult: res.battleResult, rewards: res.rewards, returnScene: 'Pvp' });
     } catch (err: any) {
       hide();
-      toast(this, err.message || 'Error al emparejar', COLORS.danger);
+      toast(this, err.message || 'Matchmaking failed', COLORS.danger);
     }
   }
 }

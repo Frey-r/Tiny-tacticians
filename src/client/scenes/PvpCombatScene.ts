@@ -73,7 +73,11 @@ class BattleUnit {
       .sprite(x, y, animKey(type, skin, 'idle'))
       .setOrigin(0.5, 0.82)
       .setDisplaySize(size, size)
-      .setFlipX(color === 'red');
+      .setFlipX(color === 'red')
+      // Por encima del terreno (césped/árboles van a depth 0) y ordenadas entre
+      // sí por Y: las unidades más cercanas (más abajo) tapan a las de atrás.
+      // Se mantiene por debajo de flechas/FX (depth 45-48).
+      .setDepth(10 + y * 0.02);
     this.sprite.play(animKey(type, skin, 'idle'));
   }
 
@@ -151,7 +155,7 @@ export class PvpCombatScene extends Phaser.Scene {
   private rewards!: { goldEarned: number; scoreEarned: number };
   private returnScene = 'Home';
   private note?: string;
-  private title = '⚔️ Simulador de Batalla ⚔️';
+  private title = '⚔️ Battle Simulator ⚔️';
   private onDone?: () => void;
 
   private cx = GAME_W / 2;
@@ -170,6 +174,7 @@ export class PvpCombatScene extends Phaser.Scene {
 
   private roundLabel!: Phaser.GameObjects.Text;
   private logText!: Phaser.GameObjects.Text;
+  private logPanel!: Phaser.GameObjects.Container;
   private logLines: string[] = [];
   private stepTimer?: Phaser.Time.TimerEvent;
   private skipBtn?: Phaser.GameObjects.Container;
@@ -184,7 +189,7 @@ export class PvpCombatScene extends Phaser.Scene {
     this.rewards = data.rewards || { goldEarned: 0, scoreEarned: 0 };
     this.returnScene = data.returnScene || 'Home';
     this.note = data.note;
-    this.title = data.title ?? '⚔️ Simulador de Batalla ⚔️';
+    this.title = data.title ?? '⚔️ Battle Simulator ⚔️';
     this.onDone = data.onDone;
     this.stepMs = data.stepMs ?? 850;
     this.hideSkip = data.hideSkip ?? false;
@@ -212,7 +217,7 @@ export class PvpCombatScene extends Phaser.Scene {
     const cx = GAME_W / 2;
     const cy = 640;
     const label = this.add
-      .text(cx, cy - 30, 'Preparando batalla…', {
+      .text(cx, cy - 30, 'Preparing battle…', {
         fontFamily: FONT.title,
         fontStyle: '700',
         fontSize: `${fontPx(20)}px`,
@@ -257,7 +262,7 @@ export class PvpCombatScene extends Phaser.Scene {
 
     // Iniciativa (quién pega primero = mayor Mando, ya reflejado en rounds[0]).
     const firstBlue = this.battle.rounds[0]?.attackerId === a.id;
-    titleText(this, firstBlue ? cx - 170 : cx + 170, 360, '▶ INICIATIVA', 10, COLORS.gold);
+    titleText(this, firstBlue ? cx - 170 : cx + 170, 360, '▶ INITIATIVE', 10, COLORS.gold);
 
     // Barras de HP de ejército.
     const barA = hpBar(this, PAD + 6, 396, 300, 1);
@@ -273,7 +278,7 @@ export class PvpCombatScene extends Phaser.Scene {
       bushes: 4,
       rocks: 3,
       decoTopOnly: true,
-    });
+    }).setDepth(0);
     this.placeArmy('blue');
     this.placeArmy('red');
 
@@ -282,14 +287,20 @@ export class PvpCombatScene extends Phaser.Scene {
     this.cmd.blue = new CommanderPanel(this, 118, 1150, a.id, a.name, { side: 'left', tint: 0x4a86c0, size: 116 });
     this.cmd.red = new CommanderPanel(this, 842, 1150, b.id, b.name, { side: 'right', tint: 0xb85048, size: 116 });
 
-    // Log + ronda en la columna central (entre los comandantes).
+    // Log + ronda en la columna central (entre los comandantes). El texto se
+    // ANCLA al borde superior del panel y solo crece hacia abajo, de modo que
+    // por largo que sea nunca se derrama sobre el campo ni pisa la etiqueta de
+    // ronda (el bug anterior lo centraba y desbordaba por arriba y por abajo).
     const logW = 564;
-    this.roundLabel = titleText(this, cx, 900, `Ronda 0 / ${this.battle.rounds.length}`, 12, COLORS.cream);
-    retroPanel(this, cx, 980, logW, 130, COLORS.card);
-    this.logText = bodyText(this, cx, 980, 'Las tropas se forman para la batalla...', 13, COLORS.ink)
-      .setWordWrapWidth(logW - 44)
+    const logTop = 924;
+    const logH = 150;
+    this.roundLabel = titleText(this, cx, 902, `Round 0 / ${this.battle.rounds.length}`, 12, COLORS.cream);
+    this.logPanel = retroPanel(this, cx, logTop + logH / 2, logW, logH, COLORS.card);
+    this.logText = bodyText(this, cx, logTop + 12, 'The troops form up for battle...', 12, COLORS.ink)
+      .setOrigin(0.5, 0)
+      .setWordWrapWidth(logW - 40)
       .setAlign('center')
-      .setLineSpacing(6);
+      .setLineSpacing(4);
 
     this.buildSkipControl();
 
@@ -308,7 +319,7 @@ export class PvpCombatScene extends Phaser.Scene {
     titleText(this, x, 158, gen.name.length > 12 ? gen.name.slice(0, 12) + '…' : gen.name, 13, COLORS.cream);
     portrait(this, x, 240, gen.id, 88, tint);
     bodyText(this, x, 300, `O${gen.stats.ofe}  D${gen.stats.def}  M${gen.stats.man}`, 12, COLORS.cream);
-    const ab = gen.abilities.length ? gen.abilities.slice(0, 2).join(' · ') : 'Sin habilidades';
+    const ab = gen.abilities.length ? gen.abilities.slice(0, 2).join(' · ') : 'No abilities';
     bodyText(this, x, 326, ab, 9, COLORS.gold).setWordWrapWidth(300).setAlign('center');
   }
 
@@ -350,7 +361,7 @@ export class PvpCombatScene extends Phaser.Scene {
     const defSide: UnitColor = atkSide === 'blue' ? 'red' : 'blue';
 
     this.pushLog(r.log, i + 1);
-    this.roundLabel.setText(`Ronda ${i + 1} / ${this.battle.rounds.length}`);
+    this.roundLabel.setText(`Round ${i + 1} / ${this.battle.rounds.length}`);
 
     const attacker = this.pickActor(atkSide);
     const target = this.pickTarget(defSide);
@@ -373,13 +384,13 @@ export class PvpCombatScene extends Phaser.Scene {
     const crit = !!r.crit;
     const fx = target ? target.sprite.x : defSide === 'blue' ? this.cx - 160 : this.cx + 160;
     const fy = (target ? target.sprite.y : this.bandY) - 80;
-    const dmgText = r.blocked ? `${r.damage} 🛡` : crit ? `¡${r.damage}!` : `${r.damage}`;
+    const dmgText = r.blocked ? `${r.damage} 🛡` : crit ? `${r.damage}!` : `${r.damage}`;
     const col = r.blocked ? 0x9fd0ff : crit ? COLORS.gold : COLORS.danger;
     floatingGain(this, fx, fy, dmgText, col, crit ? 30 : 22);
     if (target) target.flinch();
 
     if (crit) {
-      this.topFlash('✦ ¡GOLPE CRÍTICO!', COLORS.gold, true);
+      this.topFlash('✦ CRITICAL HIT!', COLORS.gold, true);
       this.fxAnim('cu_explosion', fx, fy + 30, 0.75);
     }
 
@@ -463,8 +474,10 @@ export class PvpCombatScene extends Phaser.Scene {
   }
 
   private pushLog(line: string, round: number): void {
+    // Solo la ronda MÁS reciente: un log completo por ronda ya ocupa varias
+    // líneas y dos juntas desbordaban el panel.
     this.logLines.push(`R${round}: ${line}`);
-    if (this.logLines.length > 2) this.logLines.shift();
+    if (this.logLines.length > 1) this.logLines.shift();
     this.logText.setText(this.logLines.join('\n\n'));
   }
 
@@ -498,7 +511,7 @@ export class PvpCombatScene extends Phaser.Scene {
     const c = this.add.container(0, 0);
     this.skipBtn = c;
     c.add(
-      retroButton(this, this.cx, 1095, '⏩ SALTAR AL RESULTADO', {
+      retroButton(this, this.cx, 1108, '⏩ SKIP TO RESULT', {
         variant: 'grey',
         width: 520,
         height: 56,
@@ -539,21 +552,26 @@ export class PvpCombatScene extends Phaser.Scene {
 
   private showResult(attackerWon: boolean): void {
     const cx = this.cx;
+    // Retiramos el log de rondas para que el panel de resultado tenga la
+    // columna central limpia (antes se solapaban).
+    this.roundLabel.destroy();
+    this.logText.destroy();
+    this.logPanel.destroy();
     this.cameras.main.flash(250, attackerWon ? 40 : 80, attackerWon ? 80 : 20, 20);
-    outcomeBanner(this, attackerWon ? '🏆 ¡VICTORIA!' : '💀 DERROTA', attackerWon ? COLORS.lime : COLORS.danger, !attackerWon);
+    outcomeBanner(this, attackerWon ? '🏆 VICTORY!' : '💀 DEFEAT', attackerWon ? COLORS.lime : COLORS.danger, !attackerWon);
 
     // Panel en la columna central: deja a la vista los comandantes de las esquinas.
     const panel = this.add.container(0, 0).setDepth(60);
     panel.add(retroPanel(this, cx, 980, 600, 150, attackerWon ? 0xd8f0d8 : COLORS.card));
     panel.add(
-      titleText(this, cx, 945, attackerWon ? '🏆 ¡VICTORIA!' : '💀 DERROTA', 18, attackerWon ? 0x2e6b2e : COLORS.danger)
+      titleText(this, cx, 945, attackerWon ? '🏆 VICTORY!' : '💀 DEFEAT', 18, attackerWon ? 0x2e6b2e : COLORS.danger)
     );
     panel.add(
       bodyText(
         this,
         cx,
         992,
-        this.note ?? `Recompensa: +${this.rewards.goldEarned} oro  ·  +${this.rewards.scoreEarned} pts`,
+        this.note ?? `Reward: +${this.rewards.goldEarned} gold  ·  +${this.rewards.scoreEarned} pts`,
         13,
         COLORS.ink
       )
@@ -561,7 +579,7 @@ export class PvpCombatScene extends Phaser.Scene {
         .setAlign('center')
     );
     panel.add(
-      retroButton(this, cx, 1095, 'VER REGISTRO COMPLETO', {
+      retroButton(this, cx, 1095, 'VIEW FULL LOG', {
         variant: 'grey',
         width: 560,
         height: 54,
@@ -570,10 +588,10 @@ export class PvpCombatScene extends Phaser.Scene {
       })
     );
     const finishLabel = this.onDone
-      ? 'CONTINUAR'
+      ? 'CONTINUE'
       : this.returnScene === 'Home'
-        ? 'IR AL INICIO'
-        : 'VOLVER A LA ARENA';
+        ? 'GO HOME'
+        : 'BACK TO ARENA';
     panel.add(
       retroButton(this, cx, 1158, finishLabel, {
         width: 560,
@@ -588,7 +606,7 @@ export class PvpCombatScene extends Phaser.Scene {
 
   /** Abre el registro COMPLETO de la batalla en un panel scrollable. */
   private openLog(): void {
-    const paragraphs = this.battle.rounds.map((r, i) => `Ronda ${i + 1}:\n${r.log}`);
-    openScrollPanel(this, 'Registro de batalla', paragraphs, { fontSize: 13 });
+    const paragraphs = this.battle.rounds.map((r, i) => `Round ${i + 1}:\n${r.log}`);
+    openScrollPanel(this, 'Battle log', paragraphs, { fontSize: 13 });
   }
 }

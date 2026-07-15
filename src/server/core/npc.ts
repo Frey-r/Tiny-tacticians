@@ -4,18 +4,18 @@ import { General, GeneralStats } from '../../shared/types/index.ts';
 import { calculatePower, calculateTier, deriveAbilities } from '../../shared/sim/balance.ts';
 
 const NPC_NAMES = [
-  'Valerius el Temible', 'Lydia la Pía', 'Darius el Cauto', 'Titus de Hierro',
-  'Aurelia del Viento', 'Lucius el Astuto', 'Flavia la Fuerte', 'Marcus el Sabio',
-  'Cassia de Ocre', 'Julius el Bravo', 'Diana la Veloz', 'Rufus Colmillo',
-  'Decimus el Firme', 'Septimus el Gris', 'Faustus el Rojo', 'Nero el Negro',
-  'Severa la Altiva', 'Gaius el Grande', 'Vannia la Leal', 'Aetius de Plata',
-  'Belisarius de Oriente', 'Stilicho de Occidente', 'Zenobia de Palmira',
-  'Boudica de Icenos', 'Alaric el Destructor', 'Attila el Azote', 'Clovis el Grande',
-  'Theodora de Púrpura', 'Justinian el Grande', 'Arminius de Germania',
-  'Vercingetorix de Galia', 'Leonidas de Esparta', 'Hannibal de Cartago',
-  'Scipio el Africano', 'Alexander de Macedonia', 'Cyrus de Persia',
-  'Pyrrhus de Epiro', 'Mithridates del Ponto', 'Cleopatra del Nilo',
-  'Caesar el Dictador'
+  'Valerius the Dread', 'Lydia the Pious', 'Darius the Cautious', 'Titus the Iron',
+  'Aurelia of the Wind', 'Lucius the Cunning', 'Flavia the Strong', 'Marcus the Wise',
+  'Cassia of Ochre', 'Julius the Brave', 'Diana the Swift', 'Rufus Fang',
+  'Decimus the Steadfast', 'Septimus the Grey', 'Faustus the Red', 'Nero the Black',
+  'Severa the Haughty', 'Gaius the Great', 'Vannia the Loyal', 'Aetius of Silver',
+  'Belisarius of the East', 'Stilicho of the West', 'Zenobia of Palmyra',
+  'Boudica of the Iceni', 'Alaric the Destroyer', 'Attila the Scourge', 'Clovis the Great',
+  'Theodora of the Purple', 'Justinian the Great', 'Arminius of Germania',
+  'Vercingetorix of Gaul', 'Leonidas of Sparta', 'Hannibal of Carthage',
+  'Scipio the African', 'Alexander of Macedon', 'Cyrus of Persia',
+  'Pyrrhus of Epirus', 'Mithridates of Pontus', 'Cleopatra of the Nile',
+  'Caesar the Dictator'
 ];
 
 export async function seedNPCs(): Promise<void> {

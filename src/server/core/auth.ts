@@ -3,7 +3,7 @@ import { context } from '../devvitProxy/index.ts';
 export function getCurrentUserId(): string {
   const userId = context.userId;
   if (!userId) {
-    throw new Error('UNAUTHORIZED: No se detectó una identidad de Reddit válida.');
+    throw new Error('UNAUTHORIZED: No valid Reddit identity detected.');
   }
   return userId;
 }

@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tiny Tacticians | Torneo de Generales</title>
-    <meta name="description" content="Tiny Tacticians: Entrena generales legendarios con consejeros estratégicos y compite en el torneo PvP de Reddit." />
+    <title>Tiny Tacticians | General Tournament</title>
+    <meta name="description" content="Tiny Tacticians: train legendary generals with strategic advisors and compete in Reddit's async PvP arena." />
     <!-- Google Fonts: condensed display titles (Oswald) + readable retro mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -32,14 +32,86 @@
         background:
           radial-gradient(circle at 50% 40%, #1f1812 0%, #15110e 60%, #0d0a08 100%);
       }
-      /* 'auto' (no 'pixelated'): el lienzo se escala suave por CSS para que
-         las fuentes web no salgan en bloques. Los sprites mantienen su look
-         pixel-art por el filtrado NEAREST de WebGL (pixelArt:true en Phaser). */
-      #game canvas { image-rendering: auto; }
+      /* Anti-scroll táctil: cuando el juego es la superficie activa, el canvas
+         captura el gesto en vez de que el feed de Reddit lo interprete como
+         scroll/zoom. `overscroll-behavior:none` corta el encadenamiento de
+         scroll; `touch-action:none` evita el pan/zoom nativo del navegador.
+         (El splash NO lleva esto: ahí sí queremos poder scrollear el feed.) */
+      #game canvas {
+        image-rendering: auto;
+        touch-action: none;
+        overscroll-behavior: none;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      /* Splash inline: mientras el post está en el feed mostramos esta portada
+         en vez de arrancar el juego. Un toque real (click DOM "trusted") pide
+         el modo expandido y el juego ocupa toda la pantalla. Sin touch-action
+         bloqueado: el usuario puede scrollear el feed sin quedar atrapado. */
+      #splash {
+        position: fixed;
+        inset: 0;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 22px;
+        padding: 32px;
+        text-align: center;
+        background:
+          radial-gradient(circle at 50% 35%, #241a13 0%, #17120e 55%, #0d0a08 100%);
+        font-family: 'Oswald', 'Arial Narrow', sans-serif;
+        color: #f4e4c1;
+      }
+      #splash.show { display: flex; }
+      #splash h1 {
+        font-size: clamp(28px, 9vw, 52px);
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: #f6c453;
+        text-shadow: 0 3px 0 #2a1d10;
+      }
+      #splash p {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: clamp(12px, 3.5vw, 15px);
+        line-height: 1.5;
+        max-width: 460px;
+        color: #c9b79a;
+      }
+      #play-btn {
+        margin-top: 6px;
+        padding: 16px 44px;
+        font-family: 'Oswald', sans-serif;
+        font-size: clamp(18px, 5vw, 24px);
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: #17120e;
+        background: linear-gradient(#f6c453, #e0a63a);
+        border: 3px solid #17120e;
+        border-radius: 10px;
+        box-shadow: 0 5px 0 #7a5417, 0 8px 14px rgba(0,0,0,0.45);
+        cursor: pointer;
+        touch-action: manipulation;
+        transition: transform 0.06s ease, box-shadow 0.06s ease;
+      }
+      #play-btn:active {
+        transform: translateY(4px);
+        box-shadow: 0 1px 0 #7a5417, 0 3px 8px rgba(0,0,0,0.45);
+      }
     </style>
   </head>
   <body>
     <div id="game"></div>
+    <div id="splash">
+      <h1>Tiny Tacticians</h1>
+      <p>Forge generals, take them to the PvP arena, and grow your settlement.
+         Tap to open the game in full screen.</p>
+      <button id="play-btn" type="button">▶ Play</button>
+    </div>
     <script type="module" src="/main.ts"></script>
   </body>
 </html>

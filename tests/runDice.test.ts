@@ -5,7 +5,7 @@ import { eventTurns, RUN_TURNS, SIM_VERSION } from '../src/shared/sim/balance.ts
 import { simulateBattle } from '../src/shared/sim/simulateBattle.ts';
 import { DeckSnapshot, ActionLog, Affinity, General } from '../src/shared/types/index.ts';
 
-// Deck con ids reales del catálogo (c1 OFE maestro -> 'Lluvia de Flechas').
+// Deck con ids reales del catálogo (c1 OFE maestro -> 'Arrow Volley').
 const deck: DeckSnapshot = [
   { id: 'c1', name: 'Consejero de Guerra', affinity: 'OFE', level: 5 },
   { id: 'c2', name: 'Albañil del Muro', affinity: 'DEF', level: 3 },
@@ -40,7 +40,7 @@ describe('stepRun — activación aleatoria, bond y dados', () => {
       const seed = `unlock_${i}`;
       const res = stepRun(seed, deck, trainLog(seed, 'OFE'));
       if ((res.bond['c1'] ?? 0) > 0) anyBond = true;
-      if (res.unlockedAbilities.includes('Lluvia de Flechas')) unlocked = true;
+      if (res.unlockedAbilities.includes('Arrow Volley')) unlocked = true;
     }
     expect(anyBond).toBe(true);
     expect(unlocked).toBe(true);
@@ -105,13 +105,13 @@ describe('simulateRun — acuñación con habilidades de consejero', () => {
     for (let i = 0; i < 30 && !minted; i++) {
       const seed = `mint_${i}`;
       const res = stepRun(seed, deck, trainLog(seed, 'OFE'));
-      if (res.unlockedAbilities.includes('Lluvia de Flechas')) {
+      if (res.unlockedAbilities.includes('Arrow Volley')) {
         minted = simulateRun(seed, deck, trainLog(seed, 'OFE'), 'Tester');
       }
     }
     expect(minted).not.toBeNull();
     expect(minted!.schemaVersion).toBe(SIM_VERSION);
-    expect(minted!.abilities).toContain('Lluvia de Flechas');
+    expect(minted!.abilities).toContain('Arrow Volley');
   });
 });
 
@@ -124,7 +124,7 @@ describe('simulateBattle — proc de habilidad de consejero por dado', () => {
       stats: { ofe: 60, def: 20, man: 40 }, // mayor MAN -> ataca primero
       power: 100,
       tier: 3,
-      abilities: ['Lluvia de Flechas'],
+      abilities: ['Arrow Volley'],
       seed: 's',
       schemaVersion: SIM_VERSION,
       createdAt: 0,
@@ -144,7 +144,7 @@ describe('simulateBattle — proc de habilidad de consejero por dado', () => {
     let found = false;
     for (let i = 0; i < 30 && !found; i++) {
       const res = simulateBattle(`volley_${i}`, attacker, defender);
-      if (res.rounds.some((r) => (r.abilityProcs ?? []).includes('Lluvia de Flechas'))) found = true;
+      if (res.rounds.some((r) => (r.abilityProcs ?? []).includes('Arrow Volley'))) found = true;
     }
     expect(found).toBe(true);
   });

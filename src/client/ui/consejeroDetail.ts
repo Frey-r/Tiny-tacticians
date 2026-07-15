@@ -17,42 +17,42 @@ import type { Affinity } from '../../shared/types/index.ts';
 /** Texto descriptivo de cada arquetipo de entrenamiento (ver decisions/0012). */
 export const TRAIN_STYLE_INFO: Record<string, { name: string; desc: string; next: string }> = {
   maestro: {
-    name: 'Maestro de Armas',
-    desc: 'Polariza el dado: más críticos, pero también más fallos.',
-    next: 'Subir nivel ⇒ más bonus de crítico (y dado de ventaja a nivel alto).',
+    name: 'Weapons Master',
+    desc: 'Polarizes the die: more crits, but also more failures.',
+    next: 'Level up ⇒ more crit bonus (and an advantage die at high level).',
   },
   alquimista: {
-    name: 'Alquimista',
-    desc: 'Estabiliza: casi nunca falla, pero limita el crítico.',
-    next: 'Subir nivel ⇒ entrena con un piso de dado más alto (más estable).',
+    name: 'Alchemist',
+    desc: 'Stabilizes: rarely fails, but caps the crit.',
+    next: 'Level up ⇒ trains with a higher die floor (more stable).',
   },
   intendente: {
-    name: 'Intendente',
-    desc: 'Eficiencia: reembolsa energía y regala una stat secundaria.',
-    next: 'Subir nivel ⇒ más reembolso de energía y stat secundaria.',
+    name: 'Quartermaster',
+    desc: 'Efficiency: refunds energy and grants a secondary stat.',
+    next: 'Level up ⇒ more energy refund and secondary stat.',
   },
 };
 
 /** Qué hace cada efecto de run cuando el consejero está activo. */
 export const RUN_EFFECT_DESC: Record<string, string> = {
-  energiaPrevista: 'Al activarse, reembolsa energía del turno.',
-  vinculoFervido: 'Al activarse, gana afinidad (bond) extra.',
-  botinDeGuerra: 'En un entrenamiento con éxito, otorga una stat secundaria.',
-  segundaIntencion: 'Reduce el riesgo de fallo ese turno.',
-  ojoCritico: 'Aumenta la probabilidad de crítico ese turno.',
+  energiaPrevista: "When triggered, refunds some of the turn's energy.",
+  vinculoFervido: 'When triggered, gains extra affinity (bond).',
+  botinDeGuerra: 'On a successful training, grants a secondary stat.',
+  segundaIntencion: 'Lowers the failure risk that turn.',
+  ojoCritico: 'Raises the crit chance that turn.',
 };
 
 /** Lectura corta del efecto de combate de una habilidad. */
 export function abilityEffectText(eff: { type: string; amount?: number; pct?: number }): string {
   switch (eff.type) {
     case 'bonusDamage':
-      return `+${eff.amount} daño al atacar`;
+      return `+${eff.amount} damage on attack`;
     case 'reduceIncoming':
-      return `−${eff.amount} daño recibido`;
+      return `−${eff.amount} damage taken`;
     case 'blockPct':
-      return `bloquea ${Math.round((eff.pct ?? 0) * 100)}% del golpe`;
+      return `blocks ${Math.round((eff.pct ?? 0) * 100)}% of the hit`;
     case 'ignoreMitigation':
-      return 'ignora la mitigación de la defensa rival';
+      return "ignores the enemy's defense mitigation";
     default:
       return '';
   }
@@ -60,9 +60,9 @@ export function abilityEffectText(eff: { type: string; amount?: number; pct?: nu
 
 /** Etiqueta del perfil de activación según su sesgo. */
 export function activationLabel(bias: number): string {
-  if (bias >= 0.1) return `Fiable — se activa seguido (+${Math.round(bias * 100)}%)`;
-  if (bias <= -0.1) return `Volátil — rara vez activo (${Math.round(bias * 100)}%)`;
-  return 'Estándar — sigue la rampa 5%→75%';
+  if (bias >= 0.1) return `Reliable — activates often (+${Math.round(bias * 100)}%)`;
+  if (bias <= -0.1) return `Volatile — rarely active (${Math.round(bias * 100)}%)`;
+  return 'Standard — follows the 5%→75% ramp';
 }
 
 /** Identidad mínima del consejero para la cabecera. */
@@ -135,11 +135,11 @@ export function openConsejeroModal(
     ty += v.height + 14;
   };
 
-  const kindEs = ability?.kind === 'defender' ? 'Defensa' : 'Ataque';
-  addRow('HABILIDAD DE COMBATE', ability ? `${ability.ability} · ${kindEs} — ${abilityEffectText(ability.effect)}` : '—');
-  addRow('ARQUETIPO DE ENTRENAMIENTO', `${style.name} — ${style.desc}`);
-  addRow('EFECTO DE RUN', runEff ? `${runEff.label} — ${RUN_EFFECT_DESC[def.runEffectId!] ?? ''}` : 'Ninguno');
-  addRow('ACTIVACIÓN', activationLabel(def.activationBias));
+  const kindEs = ability?.kind === 'defender' ? 'Defense' : 'Attack';
+  addRow('COMBAT ABILITY', ability ? `${ability.ability} · ${kindEs} — ${abilityEffectText(ability.effect)}` : '—');
+  addRow('TRAINING ARCHETYPE', `${style.name} — ${style.desc}`);
+  addRow('RUN EFFECT', runEff ? `${runEff.label} — ${RUN_EFFECT_DESC[def.runEffectId!] ?? ''}` : 'None');
+  addRow('ACTIVATION', activationLabel(def.activationBias));
 
   // Pie configurable: hint + costo + botones.
   m.add(
@@ -156,7 +156,7 @@ export function openConsejeroModal(
     })
   );
   m.add(
-    retroButton(scene, mx + 145, top + panelH - 66, 'CERRAR', {
+    retroButton(scene, mx + 145, top + panelH - 66, 'CLOSE', {
       variant: 'grey',
       width: 240,
       fontSize: 15,

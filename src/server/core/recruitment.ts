@@ -66,7 +66,7 @@ export async function grantContract(userId: string, color: ContractColor): Promi
     const res = await txn.exec();
     if (res && res.length > 0) return next;
   }
-  throw new Error('CONCURRENCY_ERROR: Conflicto al entregar el contrato. Inténtalo de nuevo.');
+  throw new Error('CONCURRENCY_ERROR: Conflict granting the contract. Try again.');
 }
 
 export async function getActiveLoan(
@@ -86,7 +86,7 @@ export async function getActiveLoan(
 export async function requestDailyLoan(userId: string): Promise<Consejero> {
   await getUserProfile(userId); // asegura inicialización
   if (await getActiveLoan(userId)) {
-    throw new Error('LOAN_ACTIVE: Ya tienes un préstamo activo. Vuelve cuando expire.');
+    throw new Error('LOAN_ACTIVE: You already have an active loan. Come back when it expires.');
   }
   const owned = await redis.hGetAll(keys.userConsejeros(userId));
   const pool = ACQUIRABLE_CONSEJEROS.filter((a) => !(a.id in owned));
@@ -110,7 +110,7 @@ export async function unlockWithContract(
 ): Promise<{ advisor: Consejero; contracts: Contracts; newGold: number }> {
   const base = ACQUIRABLE_CONSEJEROS.find((a) => a.id === advisorId);
   if (!base) throw new Error('ADVISOR_NOT_FOUND: Ese consejero no se puede reclutar.');
-  if (!CONTRACT_COLORS.includes(color)) throw new Error('INVALID_CONTRACT: Color de contrato inválido.');
+  if (!CONTRACT_COLORS.includes(color)) throw new Error('INVALID_CONTRACT: Invalid contract color.');
   if (!contractMatches(color, base.affinity)) {
     throw new Error('CONTRACT_MISMATCH: El color del contrato no coincide con la afinidad del consejero.');
   }
@@ -153,7 +153,7 @@ export async function unlockWithContract(
       };
     }
   }
-  throw new Error('CONCURRENCY_ERROR: Conflicto al reclutar. Inténtalo de nuevo.');
+  throw new Error('CONCURRENCY_ERROR: Conflict during recruitment. Try again.');
 }
 
 /** Estado consolidado para la pantalla de reclutamiento. */

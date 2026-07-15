@@ -16,7 +16,7 @@ import type { DailyChallenge } from '../../shared/types/index.ts';
 
 const router = Router();
 
-const POST_TITLE = 'Tiny Tacticians — ¡Entrena a tu general y conquista la arena!';
+const POST_TITLE = 'Tiny Tacticians — Train your general and conquer the arena!';
 
 /**
  * Crea (o reutiliza) el custom post jugable del subreddit actual.
@@ -167,8 +167,8 @@ router.post('/menu/create-post', async (req, res) => {
     const post = await createGamePost();
     res.json({
       showToast: post.created
-        ? '¡Post de Tiny Tacticians creado!'
-        : 'El post de Tiny Tacticians ya existía.',
+        ? 'Tiny Tacticians post created!'
+        : 'Tiny Tacticians post already existed.',
       navigateTo: post.url,
     });
   } catch (err: any) {

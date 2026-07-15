@@ -33,9 +33,9 @@ export class RunSetupScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(COLORS.screen);
     this.selected = [];
     this.generalName = randomGeneralName();
-    screenTopbar(this, 'Nueva Run', () => this.scene.start('Home'));
+    screenTopbar(this, 'New Run', () => this.scene.start('Home'));
     if (store.advisors.length === 0) {
-      const hide = loadingOverlay(this, 'CARGANDO...');
+      const hide = loadingOverlay(this, 'LOADING...');
       try {
         await loadUserData();
       } catch {
@@ -51,7 +51,7 @@ export class RunSetupScene extends Phaser.Scene {
     const c = this.add.container(0, 0);
     this.content = c;
 
-    c.add(titleText(this, GAME_W / 2, 116, `1. Elige 3 consejeros  ${this.selected.length}/3`, 18, COLORS.cream));
+    c.add(titleText(this, GAME_W / 2, 116, `1. Pick 3 advisors  ${this.selected.length}/3`, 18, COLORS.cream));
 
     // Rejilla 3 columnas (12 consejeros -> 4 filas) para caber en vertical.
     const advisors = store.advisors.slice(0, 12);
@@ -63,11 +63,11 @@ export class RunSetupScene extends Phaser.Scene {
     });
 
     // Nombre del general
-    c.add(titleText(this, GAME_W / 2, 928, '2. Nombra a tu general', 18, COLORS.cream));
+    c.add(titleText(this, GAME_W / 2, 928, '2. Name your general', 18, COLORS.cream));
     c.add(retroPanel(this, GAME_W / 2, 986, 560, 70, COLORS.card));
     c.add(bodyText(this, GAME_W / 2, 986, this.generalName, 24, COLORS.ink));
     c.add(
-      retroButton(this, GAME_W / 2, 1072, 'OTRO NOMBRE', {
+      retroButton(this, GAME_W / 2, 1072, 'ANOTHER NAME', {
         variant: 'grey',
         fontSize: 16,
         width: 360,
@@ -82,7 +82,7 @@ export class RunSetupScene extends Phaser.Scene {
     // Comenzar
     const ready = this.selected.length === 3;
     c.add(
-      retroButton(this, GAME_W / 2, 1208, 'COMENZAR RUN', {
+      retroButton(this, GAME_W / 2, 1208, 'START RUN', {
         width: CONTENT_W,
         height: 88,
         fontSize: 22,
@@ -140,7 +140,7 @@ export class RunSetupScene extends Phaser.Scene {
       });
     } catch (err: any) {
       hide();
-      toast(this, err.message || 'Error al iniciar run', COLORS.danger);
+      toast(this, err.message || 'Failed to start run', COLORS.danger);
     }
   }
 }

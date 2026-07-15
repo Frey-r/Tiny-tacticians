@@ -104,7 +104,7 @@ export function openScrollPanel(
     maskShape.destroy();
   };
 
-  const closeBtn = retroButton(scene, cx, cy + panelH / 2 - 42, opts.closeLabel ?? 'CERRAR', {
+  const closeBtn = retroButton(scene, cx, cy + panelH / 2 - 42, opts.closeLabel ?? 'CLOSE', {
     variant: 'maroon',
     width: 260,
     height: 58,

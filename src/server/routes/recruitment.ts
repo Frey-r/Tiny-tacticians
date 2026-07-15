@@ -28,7 +28,7 @@ router.post('/loan', async (_req, res) => {
     const advisor = await requestDailyLoan(userId);
     res.json({ advisor });
   } catch (err: any) {
-    res.status(400).json({ error: err.message || 'Error en la petición diaria' });
+    res.status(400).json({ error: err.message || 'Daily request failed' });
   }
 });
 

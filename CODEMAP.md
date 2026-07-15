@@ -1,4 +1,4 @@
-# CODEMAP — Bannerfall / Tiny Tacticians
+# CODEMAP — Tiny Tacticians
 
 Mapa de referencia del código. Objetivo: ubicar rápido "dónde está X" sin releer todo el repo.
 Formato: `archivo:línea — descripción`. Generado 2026-07-14, revisar si el diff es grande.

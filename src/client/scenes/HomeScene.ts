@@ -41,8 +41,8 @@ export class HomeScene extends Phaser.Scene {
     const gold = store.profile ? store.profile.gold : 120;
     const advisors = store.advisors.length;
 
-    bar.add(resourcePill(this, PAD, 52, 'icon_gold', `${gold} oro`, COLORS.lime));
-    bar.add(resourcePill(this, PAD, 104, 'icon_shield', `${advisors} consejeros`, COLORS.card));
+    bar.add(resourcePill(this, PAD, 52, 'icon_gold', `${gold} gold`, COLORS.lime));
+    bar.add(resourcePill(this, PAD, 104, 'icon_shield', `${advisors} advisors`, COLORS.card));
 
     bar.add(
       this.add
@@ -179,20 +179,20 @@ export class HomeScene extends Phaser.Scene {
   private buildNav(): void {
     const cx = GAME_W / 2;
     // Navegación apilada full-width (objetivos táctiles grandes).
-    retroButton(this, cx, 1012, 'JUGAR', {
+    retroButton(this, cx, 1012, 'PLAY', {
       width: CONTENT_W,
       height: 104,
       fontSize: 28,
       onClick: () => this.toggleJugarModal(true),
     });
-    retroButton(this, cx, 1122, 'COLECCIÓN', {
+    retroButton(this, cx, 1122, 'COLLECTION', {
       variant: 'grey',
       width: CONTENT_W,
       height: 80,
       fontSize: 18,
       onClick: () => this.scene.start('Collection'),
     });
-    retroButton(this, cx, 1210, 'EVENTOS', {
+    retroButton(this, cx, 1210, 'EVENTS', {
       variant: 'grey',
       width: CONTENT_W,
       height: 80,
@@ -223,10 +223,10 @@ export class HomeScene extends Phaser.Scene {
     const panel = retroPanel(this, cx, cy, 620, panelHeight, COLORS.panelDark);
     
     const titleY = isMod ? cy - 210 : cy - 160;
-    const title = titleText(this, cx, titleY, '¿Qué quieres hacer?', 18, COLORS.cream);
+    const title = titleText(this, cx, titleY, 'What will you do?', 18, COLORS.cream);
     
     const runY = isMod ? cy - 110 : cy - 60;
-    const run = retroButton(this, cx, runY, 'CORRER RUN', {
+    const run = retroButton(this, cx, runY, 'START RUN', {
       variant: 'grey',
       width: 540,
       height: 76,
@@ -252,14 +252,14 @@ export class HomeScene extends Phaser.Scene {
     const elements: Phaser.GameObjects.GameObject[] = [backdrop, panel, title, run, pvp];
 
     if (isMod) {
-      const resetTutorial = retroButton(this, cx, cy + 90, 'FORZAR TUTORIAL', {
+      const resetTutorial = retroButton(this, cx, cy + 90, 'FORCE TUTORIAL', {
         variant: 'grey',
         width: 540,
         height: 76,
         fontSize: 16,
         onClick: async () => {
           this.toggleJugarModal(false);
-          const hide = loadingOverlay(this, 'REINICIANDO...');
+          const hide = loadingOverlay(this, 'RESETTING...');
           try {
             await api.post('/api/profile/reset-onboarding');
             await loadUserData();
@@ -267,7 +267,7 @@ export class HomeScene extends Phaser.Scene {
             this.scene.start('Intro');
           } catch (err: any) {
             hide();
-            toast(this, err.message || 'Error al reiniciar', COLORS.danger);
+            toast(this, err.message || 'Reset failed', COLORS.danger);
           }
         },
       });
@@ -275,7 +275,7 @@ export class HomeScene extends Phaser.Scene {
     }
     
     const closeY = isMod ? cy + 200 : cy + 150;
-    const close = retroButton(this, cx, closeY, 'CERRAR', {
+    const close = retroButton(this, cx, closeY, 'CLOSE', {
       variant: 'maroon',
       width: 320,
       height: 60,

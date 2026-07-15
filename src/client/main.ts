@@ -48,7 +48,17 @@ const config: Phaser.Types.Core.GameConfig = {
   ],
 };
 
-async function start(): Promise<void> {
+let booted = false;
+
+async function boot(): Promise<void> {
+  if (booted) return;
+  booted = true;
+
+  const splash = document.getElementById('splash');
+  if (splash) splash.classList.remove('show');
+  const gameEl = document.getElementById('game');
+  if (gameEl) gameEl.style.display = 'flex';
+
   // Esperar a las fuentes web (Oswald / JetBrains Mono) para que los textos
   // no se rendericen primero con una fuente de respaldo (FOUT).
   try {
@@ -78,6 +88,66 @@ async function start(): Promise<void> {
   requestAnimationFrame(refresh);
   setTimeout(refresh, 250);
   setTimeout(refresh, 1200);
+}
+
+/**
+ * Orquesta el arranque según el modo de presentación del webview.
+ *
+ * - En DEV (o sin runtime de Devvit) arrancamos el juego directo: no hay
+ *   feed que scrollear y las APIs de expand no existen.
+ * - En un post real, mientras el webview está INLINE mostramos el splash
+ *   (el feed se puede scrollear sin quedar atrapado). Al tocar "Jugar"
+ *   pedimos el modo EXPANDED y el juego ocupa toda la pantalla; ahí el
+ *   canvas (touch-action:none) captura el gesto y el scroll deja de robar.
+ * - Si la API de expand no está disponible, degradamos arrancando inline.
+ */
+async function start(): Promise<void> {
+  const splash = document.getElementById('splash');
+  const playBtn = document.getElementById('play-btn');
+
+  // Dev / entorno sin webview de Devvit: juego directo.
+  if (import.meta.env.DEV || !splash || !playBtn) {
+    await boot();
+    return;
+  }
+
+  let wv: typeof import('./webview.ts') | null = null;
+  try {
+    wv = await import('./webview.ts');
+  } catch {
+    wv = null;
+  }
+
+  // Sin puente disponible, o ya venimos expandidos: arrancar el juego.
+  if (!wv || wv.getMode() === 'expanded') {
+    await boot();
+    return;
+  }
+
+  // Inline: mostrar el splash y esperar el toque para expandir.
+  splash.classList.add('show');
+  const gameEl = document.getElementById('game');
+  if (gameEl) gameEl.style.display = 'none';
+
+  // Al pasar a expandido (Reddit recarga o cambia el modo en caliente),
+  // ocultamos el splash y arrancamos el juego.
+  wv.onModeChange((mode) => {
+    if (mode === 'expanded') void boot();
+  });
+
+  playBtn.addEventListener('click', (ev) => {
+    const requested = wv!.expand(ev);
+    if (!requested) {
+      // Cliente sin soporte de expand: arrancar inline como fallback.
+      void boot();
+      return;
+    }
+    // Red de seguridad: si tras el intento seguimos inline (la API no hizo
+    // nada), arrancar inline para no dejar al usuario atrapado en el splash.
+    setTimeout(() => {
+      if (!booted && wv!.getMode() !== 'expanded') void boot();
+    }, 1800);
+  });
 }
 
 void start();

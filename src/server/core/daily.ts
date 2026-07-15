@@ -42,26 +42,26 @@ const DAILY_BATTLE_LIMIT = 30; // combates diarios por hora (anti-abuso)
 const DAILY_MODIFIERS: (DailyModifier & { apply: (s: GeneralStats) => void })[] = [
   {
     id: 'mod_cab',
-    name: 'Doctrina de Caballería',
-    description: 'El enemigo carga con fuerza. +12 Ofensiva.',
+    name: 'Cavalry Doctrine',
+    description: 'The enemy charges hard. +12 Offense.',
     apply: (s) => { s.ofe += 12; },
   },
   {
     id: 'mod_mur',
-    name: 'Muralla de Escudos',
-    description: 'El enemigo se atrinchera. +12 Defensiva.',
+    name: 'Shield Rampart',
+    description: 'The enemy digs in. +12 Defense.',
     apply: (s) => { s.def += 12; },
   },
   {
     id: 'mod_man',
-    name: 'Maestría Táctica',
-    description: 'El enemigo maniobra con astucia. +12 Mando.',
+    name: 'Tactical Mastery',
+    description: 'The enemy maneuvers cunningly. +12 Command.',
     apply: (s) => { s.man += 12; },
   },
   {
     id: 'mod_horda',
-    name: 'Horda Veterana',
-    description: 'Tropas curtidas en todos los frentes. +6 a todas las estadísticas.',
+    name: 'Veteran Horde',
+    description: 'Battle-hardened on all fronts. +6 to all stats.',
     apply: (s) => { s.ofe += 6; s.def += 6; s.man += 6; },
   },
 ];
@@ -94,7 +94,7 @@ function buildDailyEnemy(
   return {
     id: `daily_${date}`,
     ownerId: 'daily',
-    name: `Orden Carmesí (${modifier.name})`,
+    name: `Crimson Order (${modifier.name})`,
     stats,
     power: calculatePower(stats),
     tier: calculateTier(calculatePower(stats)),
@@ -174,7 +174,7 @@ export async function resolveDailyBattle(
     throw new Error('GENERAL_NOT_FOUND: General atacante no encontrado.');
   }
   if (attacker.ownerId !== userId) {
-    throw new Error('FORBIDDEN: No eres el dueño de este general.');
+    throw new Error('FORBIDDEN: You do not own this general.');
   }
 
   // Semilla reproducible derivada de las entradas + contexto (fecha del reto).
@@ -207,13 +207,13 @@ export async function claimDaily(
 ): Promise<DailyClaimResult> {
   // Rechazar retos pasados o expirados.
   if (date !== getCanonicalDate()) {
-    throw new Error('DAILY_EXPIRED: Este reto diario ya está cerrado.');
+    throw new Error('DAILY_EXPIRED: This daily challenge is already closed.');
   }
 
   // Elegibilidad: debe haber completado el objetivo de hoy.
   const completed = await redis.get(keys.dailyCompletion(date, userId));
   if (!completed) {
-    throw new Error('DAILY_NOT_ELIGIBLE: Aún no has completado el reto diario de hoy.');
+    throw new Error("DAILY_NOT_ELIGIBLE: You haven't completed today's daily challenge yet.");
   }
 
   // Candado idempotente: el primero gana, el resto se rechaza (sin doble crédito).

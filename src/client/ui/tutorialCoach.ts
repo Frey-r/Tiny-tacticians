@@ -46,7 +46,7 @@ const DEPTH_SPOT = 950;
 const DEPTH_BOX = 960;
 
 function pandaLine(text: string): DialogLine {
-  return { name: 'Maestro Panda', text, textureKey: 'panda_idle', frame: 0, side: 'left', tint: COLORS.lime };
+  return { name: 'Master Panda', text, textureKey: 'panda_idle', frame: 0, side: 'left', tint: COLORS.lime };
 }
 
 export class TutorialCoach {
@@ -66,21 +66,21 @@ export class TutorialCoach {
   /** Arranca la secuencia de apertura (turno 0 = entrenamiento). */
   start(): void {
     this.queue = [
-      { text: '¡Bienvenido, comandante! Soy tu maestro. Te enseñaré a forjar un ejército imparable.' },
+      { text: "Welcome, commander! I'm your master. I'll teach you to forge an unstoppable army." },
       {
-        text: 'Aquí ves el TURNO, tu ENERGÍA y el ÁNIMO de la tropa. Con poca energía fallarás más; el ánimo mejora o empeora tus tiradas.',
+        text: "Here you see the TURN, your ENERGY, and the troops' MOOD. Low energy means more failures; mood improves or worsens your rolls.",
         rectKey: 'header',
       },
       {
-        text: 'Estos son tus CONSEJEROS. Cada turno algunos ASISTEN al azar: suben su afinidad y, al llenarla, desbloquean una habilidad de combate.',
+        text: 'These are your ADVISORS. Each turn some ASSIST at random: they build affinity and, once full, unlock a combat ability.',
         rectKey: 'deck',
       },
       {
-        text: 'Este es tu CAMPAMENTO: aquí se forma el recluta que se convertirá en tu general.',
+        text: 'This is your CAMP: here the recruit that becomes your general is formed.',
         rectKey: 'liveFeed',
       },
       {
-        text: '¡Ahora entrena! Cada tarjeta (OFE, DEF, MAN) muestra la ganancia y las probabilidades. Toca una para entrenar.',
+        text: 'Now train! Each card (OFE, DEF, MAN) shows the gain and the odds. Tap one to train.',
         rectKey: 'training',
         gate: 'train',
       },
@@ -103,11 +103,11 @@ export class TutorialCoach {
     if (this.finished) return;
     this.queue = [
       {
-        text: '¡Eso fue una TIRADA de dado! FALLO no da nada, NORMAL suma y CRÍTICO (dorado) suma extra. Consejeros y ánimo reforman el dado a tu favor.',
+        text: 'That was a dice ROLL! FAIL gives nothing, NORMAL adds, and CRIT (gold) adds extra. Advisors and mood reshape the die in your favor.',
         rectKey: 'dice',
       },
       {
-        text: 'Sigue entrenando (y descansa si baja la energía). Supera los encuentros y, al final, ¡acuña a tu general! Ahora tú tienes el mando, comandante.',
+        text: "Keep training (and rest if energy drops). Clear the encounters and, at the end, mint your general! You're in command now, commander.",
       },
     ];
     this.next();
@@ -121,15 +121,15 @@ export class TutorialCoach {
     this.shownStates.add(state);
     const map: Record<typeof state, Step> = {
       event: {
-        text: '¡Un EVENTO! Un dilema con dos ramas: una arriesgada (tira el dado) y otra segura. Elige con cabeza.',
+        text: 'An EVENT! A dilemma with two branches: a risky one (rolls the die) and a safe one. Choose wisely.',
         rectKey: 'event',
       },
       encounter: {
-        text: '¡Un ENCUENTRO! Tu ejército pelea según sus stats. Entrena bien para vencer; el último rival es el JEFE.',
+        text: 'An ENCOUNTER! Your army fights based on its stats. Train well to win; the last foe is the BOSS.',
         rectKey: 'encounter',
       },
       completion: {
-        text: '¡Run completada! Pulsa ACUÑAR para forjar a tu general. Ganes o pierdas al jefe, tu general nace de este entrenamiento.',
+        text: 'Run complete! Press MINT to forge your general. Win or lose against the boss, your general is born from this training.',
         rectKey: 'completion',
       },
     };
@@ -155,7 +155,7 @@ export class TutorialCoach {
       depth: DEPTH_BOX,
       backdrop: !gated,
       dim: false,
-      hint: gated ? '▶ toca una tarjeta de entrenamiento' : '▶ toca para continuar',
+      hint: gated ? '▶ tap a training card' : '▶ tap to continue',
       onAdvance: gated ? undefined : () => this.next(),
     });
 

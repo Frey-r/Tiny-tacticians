@@ -91,7 +91,7 @@ export async function submitRun(
   }
 
   if (run.ownerId !== userId) {
-    throw new Error('FORBIDDEN: No eres el dueño de esta run.');
+    throw new Error('FORBIDDEN: You do not own this run.');
   }
 
   if (Date.now() - run.createdAt > RUN_TTL_SECONDS * 1000) {

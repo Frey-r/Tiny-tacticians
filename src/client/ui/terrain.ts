@@ -85,11 +85,14 @@ export function grassField(
   const sprites: Array<Phaser.GameObjects.Sprite | Phaser.GameObjects.Image> = [];
 
   // Árboles: banda superior (fondo). Se recortan por arriba => línea de bosque.
+  // En modo batalla (`decoTopOnly`) van MÁS arriba y agrupados en el tercio
+  // superior para que la línea de bosque quede detrás y por encima de los
+  // carriles de tropas, sin invadirlos.
   const treeH = opts.treeH ?? Math.min(140, Math.round(h * 0.62));
   const treeW = Math.round(treeH * (192 / 256));
   for (let i = 0; i < trees; i++) {
     const x = left + 24 + rand() * (w - 48);
-    const y = top + h * (0.28 + rand() * 0.16);
+    const y = decoTopOnly ? top + h * (0.1 + rand() * 0.12) : top + h * (0.28 + rand() * 0.16);
     const t = scene.add.sprite(x, y, 'terrainTree').setOrigin(0.5, 1).setDisplaySize(treeW, treeH);
     t.play({ key: 'terrainTree', startFrame: Math.floor(rand() * 8) });
     if (rand() > 0.5) t.setFlipX(true);

@@ -41,11 +41,11 @@ const symbolForKind = (kind: AbilityKind): number => (kind === 'defender' ? SYM_
 
 /* Habilidades "hardcodeadas" en simulateBattle.ts (no viven en COMBAT_ABILITIES). */
 const HARDCODED: Record<string, AbilityMeta> = {
-  'Carga Devastadora': { kind: 'attacker', random: true, symbolFrame: SYM_BURST },
-  'Grito de Mando': { kind: 'attacker', random: true, symbolFrame: SYM_SWORD },
-  'Furia de Combate': { kind: 'attacker', random: false, symbolFrame: SYM_SWORD },
-  'Escudo Inquebrantable': { kind: 'defender', random: true, symbolFrame: SYM_SHIELD },
-  'Baluarte Férreo': { kind: 'defender', random: false, symbolFrame: SYM_SHIELD },
+  'Devastating Charge': { kind: 'attacker', random: true, symbolFrame: SYM_BURST },
+  'Command Shout': { kind: 'attacker', random: true, symbolFrame: SYM_SWORD },
+  'Battle Fury': { kind: 'attacker', random: false, symbolFrame: SYM_SWORD },
+  'Unbreakable Shield': { kind: 'defender', random: true, symbolFrame: SYM_SHIELD },
+  'Iron Bulwark': { kind: 'defender', random: false, symbolFrame: SYM_SHIELD },
 };
 
 /* Habilidades de consejero: el `kind` sale del catálogo compartido; todas

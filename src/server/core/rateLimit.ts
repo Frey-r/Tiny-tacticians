@@ -27,7 +27,7 @@ export async function checkRateLimit(
     // Revertir para no penalizar ventanas futuras con este intento rechazado.
     await redis.hIncrBy(key, String(window), -1);
     throw new Error(
-      `RATE_LIMIT_EXCEEDED: Has superado el límite de ${max} acciones (${action}) en esta ventana. Inténtalo más tarde.`
+      `RATE_LIMIT_EXCEEDED: You exceeded the limit of ${max} actions (${action}) in this window. Try again later.`
     );
   }
 }

@@ -115,7 +115,7 @@ router.post('/create-post', async (req, res) => {
       created: post.created,
       id: post.id,
       url: post.url,
-      message: post.created ? 'Post creado.' : 'El post ya existía.',
+      message: post.created ? 'Post created.' : 'Post already existed.',
     });
   } catch (err: any) {
     console.error('[api/create-post] Error:', {

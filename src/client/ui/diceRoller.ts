@@ -32,9 +32,9 @@ const BAND_COLOR: Record<string, number> = {
 };
 
 const BAND_LABEL: Record<string, string> = {
-  FALLO: '✗ FALLO',
+  FALLO: '✗ FAIL',
   NORMAL: '▶',
-  CRITICO: '✦ CRÍTICO',
+  CRITICO: '✦ CRIT',
 };
 
 export class DiceRoller {

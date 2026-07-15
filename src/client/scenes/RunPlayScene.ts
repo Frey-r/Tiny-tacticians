@@ -148,7 +148,7 @@ export class RunPlayScene extends Phaser.Scene {
 
   create(): void {
     this.cameras.main.setBackgroundColor(COLORS.screen);
-    screenTopbar(this, `Campamento: ${this.run.name}`, () => this.scene.start('Home'));
+    screenTopbar(this, `Camp: ${this.run.name}`, () => this.scene.start('Home'));
     this.render();
     if (this.tutorial) {
       this.coach = new TutorialCoach(this);
@@ -207,7 +207,7 @@ export class RunPlayScene extends Phaser.Scene {
     const turnW = 430;
     const turnX = PAD + turnW / 2;
     c.add(retroPanel(this, turnX, 152, turnW, 92, COLORS.card));
-    c.add(titleText(this, turnX, 132, 'TURNO ACTUAL', 14, COLORS.ink));
+    c.add(titleText(this, turnX, 132, 'CURRENT TURN', 14, COLORS.ink));
     c.add(titleText(this, turnX, 166, `${String(shown).padStart(2, '0')} / ${total}`, 26, COLORS.ink));
 
     const moodW = CONTENT_W - turnW - 16;
@@ -216,16 +216,16 @@ export class RunPlayScene extends Phaser.Scene {
     // descriptor cualitativo cuyas bandas coinciden con moodDiceShift.
     const face = this.mood >= 1.1 ? ':D' : this.mood >= 0.9 ? ':)' : ':(';
     const moodLabel =
-      this.mood >= 1.3 ? 'ALTO' : this.mood >= 1.1 ? 'BUENO' : this.mood >= 0.9 ? 'NORMAL' : this.mood >= 0.7 ? 'BAJO' : 'PÉSIMO';
+      this.mood >= 1.3 ? 'HIGH' : this.mood >= 1.1 ? 'GOOD' : this.mood >= 0.9 ? 'NORMAL' : this.mood >= 0.7 ? 'LOW' : 'AWFUL';
     const moodCol = this.mood >= 1.1 ? 0x2e6b2e : this.mood >= 0.9 ? COLORS.ink : COLORS.danger;
     c.add(retroPanel(this, moodX, 152, moodW, 92, COLORS.card));
-    c.add(titleText(this, moodX, 132, 'ANIMO', 14, COLORS.ink));
+    c.add(titleText(this, moodX, 132, 'MOOD', 14, COLORS.ink));
     c.add(bodyText(this, moodX, 168, `${face}  ${moodLabel}`, 20, moodCol));
 
     // Barra de energía (ahora REAL: gobierna el riesgo de fallo).
     const pct = this.energy / ENERGY_MAX;
     const col = this.energy > 55 ? COLORS.lime : this.energy > 30 ? COLORS.gold : COLORS.danger;
-    c.add(bodyText(this, PAD, 216, 'ENERGIA', 18, COLORS.cream).setOrigin(0, 0.5));
+    c.add(bodyText(this, PAD, 216, 'ENERGY', 18, COLORS.cream).setOrigin(0, 0.5));
     c.add(bodyText(this, GAME_W - PAD, 216, `${Math.round(this.energy)}%`, 18, col).setOrigin(1, 0.5));
     c.add(this.add.rectangle(PAD, 252, CONTENT_W, 30, 0x3a2f22).setOrigin(0, 0.5).setStrokeStyle(3, COLORS.border));
     c.add(this.add.rectangle(PAD + 3, 252, Math.max(2, (CONTENT_W - 6) * pct), 22, col).setOrigin(0, 0.5));
@@ -233,9 +233,9 @@ export class RunPlayScene extends Phaser.Scene {
 
   /* ---- 2. Estado de asesores (deck) ---------------------------- */
   private advisorDeck(c: Phaser.GameObjects.Container): void {
-    c.add(bodyText(this, PAD, 300, 'ESTADO DE ASESORES', 17, COLORS.cream).setOrigin(0, 0.5));
+    c.add(bodyText(this, PAD, 300, 'ADVISOR STATUS', 17, COLORS.cream).setOrigin(0, 0.5));
     c.add(
-      bodyText(this, GAME_W - PAD, 300, `${this.activeThisTurn.size}/${this.run.advisors.length} ACTIVOS`, 14, COLORS.gold).setOrigin(
+      bodyText(this, GAME_W - PAD, 300, `${this.activeThisTurn.size}/${this.run.advisors.length} ACTIVE`, 14, COLORS.gold).setOrigin(
         1,
         0.5
       )
@@ -265,7 +265,7 @@ export class RunPlayScene extends Phaser.Scene {
 
     if (!adv) {
       slot.add(this.add.rectangle(0, 0, w, h, 0x3a342c).setStrokeStyle(3, COLORS.border));
-      slot.add(bodyText(this, 0, 0, 'vacío', 16, COLORS.cardLo));
+      slot.add(bodyText(this, 0, 0, 'empty', 16, COLORS.cardLo));
       return slot;
     }
 
@@ -287,7 +287,7 @@ export class RunPlayScene extends Phaser.Scene {
     // Estado de asistencia: ACTIVO (asiste este turno) vs en espera (atenuado).
     slot.add(
       active
-        ? titleText(this, 0, -h / 2 + 18, 'ACTIVO', 12, COLORS.gold)
+        ? titleText(this, 0, -h / 2 + 18, 'ACTIVE', 12, COLORS.gold)
         : bodyText(this, 0, -h / 2 + 18, '· · ·', 14, COLORS.cardLo)
     );
     slot.add(bodyText(this, 0, h / 2 - 32, adv.name.split(' ')[0], 14, COLORS.gold));
@@ -311,10 +311,10 @@ export class RunPlayScene extends Phaser.Scene {
 
   /* ---- 3. Recuperación (descanso consume el turno) ------------- */
   private recovery(c: Phaser.GameObjects.Container): void {
-    c.add(bodyText(this, PAD, 472, 'RECUPERACIÓN', 17, COLORS.cream).setOrigin(0, 0.5));
+    c.add(bodyText(this, PAD, 472, 'RECOVERY', 17, COLORS.cream).setOrigin(0, 0.5));
     const full = this.energy >= ENERGY_MAX;
     c.add(
-      retroButton(this, GAME_W / 2, 520, full ? 'ENERGÍA AL MÁXIMO' : 'DESCANSO REPARADOR   (recupera energía)', {
+      retroButton(this, GAME_W / 2, 520, full ? 'ENERGY FULL' : 'REST & RECOVER   (restores energy)', {
         variant: 'grey',
         width: CONTENT_W,
         height: 62,
@@ -363,7 +363,7 @@ export class RunPlayScene extends Phaser.Scene {
   /* ---- 5. Tarjetas de entrenamiento (la apuesta) -------------- */
   private trainingCards(c: Phaser.GameObjects.Container): void {
     const cx = GAME_W / 2;
-    c.add(titleText(this, cx, 958, 'ENTRENAMIENTO', 17, COLORS.cream));
+    c.add(titleText(this, cx, 958, 'TRAINING', 17, COLORS.cream));
     const n = this.activeThisTurn.size;
     c.add(
       bodyText(
@@ -371,8 +371,8 @@ export class RunPlayScene extends Phaser.Scene {
         cx,
         990,
         n > 0
-          ? `${n} consejero(s) ASISTEN este turno · elige una afinidad`
-          : 'ningún consejero asiste este turno · elige una afinidad',
+          ? `${n} advisor(s) ASSIST this turn · pick an affinity`
+          : 'no advisors assist this turn · pick an affinity',
         15,
         COLORS.gold
       )
@@ -402,7 +402,7 @@ export class RunPlayScene extends Phaser.Scene {
       this,
       0,
       40,
-      `EX: ${Math.round(pv.successPct * 100)}%  CR: ${Math.round(pv.critPct * 100)}%`,
+      `HIT: ${Math.round(pv.successPct * 100)}%  CR: ${Math.round(pv.critPct * 100)}%`,
       16,
       risky ? COLORS.gold : pal.text
     );
@@ -410,11 +410,11 @@ export class RunPlayScene extends Phaser.Scene {
     const die = pv.roll.dice[0]?.allowed ?? [1, 2, 3, 4, 5, 6];
     const dieLabel =
       pv.roll.dice.length > 1
-        ? `DADOS x${pv.roll.dice.length} (${die[0]}-${die[die.length - 1]})`
-        : `DADO (${die[0]}-${die[die.length - 1]})`;
+        ? `DICE x${pv.roll.dice.length} (${die[0]}-${die[die.length - 1]})`
+        : `DIE (${die[0]}-${die[die.length - 1]})`;
     const dieTxt = bodyText(this, 0, 70, dieLabel, 14, pal.text).setAlpha(0.9);
     // Coste NETO de energía: los Intendentes activos pueden reembolsar (incluso a positivo).
-    const costLabel = pv.energyCost >= 0 ? `-${pv.energyCost} ENERGÍA` : `+${-pv.energyCost} ENERGÍA`;
+    const costLabel = pv.energyCost >= 0 ? `-${pv.energyCost} ENERGY` : `+${-pv.energyCost} ENERGY`;
     const cost = bodyText(this, 0, 96, costLabel, 14, pal.text).setAlpha(0.85);
 
     const press = this.add.container(0, 0, [body, top, bottom, name, val, gain, odds, dieTxt, cost]);
@@ -446,7 +446,7 @@ export class RunPlayScene extends Phaser.Scene {
     const cx = GAME_W / 2;
     const ev = eventForTurn(this.run.seed, this.turn);
 
-    c.add(titleText(this, cx, 972, 'EVENTO', 18, COLORS.gold));
+    c.add(titleText(this, cx, 972, 'EVENT', 18, COLORS.gold));
     c.add(retroPanel(this, cx, 1056, CONTENT_W, 124, COLORS.card));
     c.add(titleText(this, cx, 1014, ev.name, 18, COLORS.ink));
     c.add(
@@ -485,20 +485,20 @@ export class RunPlayScene extends Phaser.Scene {
 
     // Resumen de acuñación con el bono del jefe YA aplicado (paridad con el servidor).
     const finalStats = applyEncounterBonus(this.stats, this.bonusEarned);
-    c.add(titleText(this, cx, 996, 'ENTRENAMIENTO COMPLETO', 20, COLORS.gold));
+    c.add(titleText(this, cx, 996, 'TRAINING COMPLETE', 20, COLORS.gold));
     c.add(
-      bodyText(this, cx, 1050, 'Tu recluta terminó la campaña. Acuña la unidad\ninmutable para enviarla al combate.', 16, COLORS.cream).setAlign(
+      bodyText(this, cx, 1050, 'Your recruit finished the campaign. Mint the\nimmutable unit to send it into battle.', 16, COLORS.cream).setAlign(
         'center'
       )
     );
-    c.add(titleText(this, cx, 1108, `PODER  ${calculatePower(finalStats)}`, 22, COLORS.cream));
+    c.add(titleText(this, cx, 1108, `POWER  ${calculatePower(finalStats)}`, 22, COLORS.cream));
     if (this.bonusEarned) {
-      c.add(bodyText(this, cx, 1146, '★ BONO DEL JEFE: +10 A TODAS LAS STATS', 14, COLORS.gold));
+      c.add(bodyText(this, cx, 1146, '★ BOSS BONUS: +10 TO ALL STATS', 14, COLORS.gold));
     } else if (boss) {
-      c.add(bodyText(this, cx, 1146, 'Sin bono del jefe (no derrotaste al boss).', 13, COLORS.danger));
+      c.add(bodyText(this, cx, 1146, 'No boss bonus (you did not defeat the boss).', 13, COLORS.danger));
     }
     c.add(
-      retroButton(this, cx, 1212, 'ACUÑAR GENERAL', {
+      retroButton(this, cx, 1212, 'MINT GENERAL', {
         width: CONTENT_W,
         height: 84,
         fontSize: 20,
@@ -619,7 +619,7 @@ export class RunPlayScene extends Phaser.Scene {
       const after = this.bond[id] ?? 0;
       if (after >= BOND_THRESHOLD && after - delta < BOND_THRESHOLD) {
         const ability = CONSEJERO_ABILITY[id];
-        if (ability) outcomeBanner(this, `AFINIDAD: ${ability}`, COLORS.gold, false);
+        if (ability) outcomeBanner(this, `AFFINITY: ${ability}`, COLORS.gold, false);
       }
     }
   }
@@ -629,20 +629,20 @@ export class RunPlayScene extends Phaser.Scene {
     // Efectos de run detonados por consejeros activos (el diferenciador del pool).
     if (tr.advisorProcs && tr.advisorProcs.length > 0) {
       const labels = [...new Set(tr.advisorProcs.map((p) => p.label))].join(' · ');
-      toast(this, `EFECTO: ${labels}`, COLORS.gold);
+      toast(this, `EFFECT: ${labels}`, COLORS.gold);
     }
     const idx = (['OFE', 'DEF', 'MAN'] as Affinity[]).indexOf(tr.choice);
     const x = GAME_W / 2 + (idx - 1) * 248;
     const y = 1014;
     if (tr.outcome === 'fail') {
-      floatingGain(this, x, y, 'FALLO', COLORS.danger, 24);
-      outcomeBanner(this, 'ENTRENAMIENTO FALLIDO', COLORS.danger, true);
+      floatingGain(this, x, y, 'FAIL', COLORS.danger, 24);
+      outcomeBanner(this, 'TRAINING FAILED', COLORS.danger, true);
       return;
     }
     const delta = tr.gains[STAT_KEY[tr.choice]] ?? 0;
     const crit = tr.outcome === 'crit';
     floatingGain(this, x, y, `+${delta} ${tr.choice}`, crit ? COLORS.gold : COLORS.lime, crit ? 30 : 24);
-    if (crit) outcomeBanner(this, '¡ENTRENAMIENTO PERFECTO!', COLORS.gold, false);
+    if (crit) outcomeBanner(this, 'PERFECT TRAINING!', COLORS.gold, false);
   }
 
   private showStatDeltas(tr: TurnResult): void {
@@ -680,15 +680,15 @@ export class RunPlayScene extends Phaser.Scene {
         this,
         cx,
         990,
-        enc.isBoss ? '¡JEFE FINAL!' : `¡ENCUENTRO ${enc.index + 1} / ${ENCOUNTER_COUNT}!`,
+        enc.isBoss ? 'FINAL BOSS!' : `ENCOUNTER ${enc.index + 1} / ${ENCOUNTER_COUNT}!`,
         18,
         COLORS.danger
       )
     );
-    c.add(bodyText(this, cx, 1022, `${enc.enemyName} · PODER ${enc.enemyPower}`, 15, COLORS.cream));
-    c.add(bodyText(this, cx, 1054, 'El enemigo bloquea el paso. Pelea cuando estés listo.', 14, COLORS.gold));
+    c.add(bodyText(this, cx, 1022, `${enc.enemyName} · POWER ${enc.enemyPower}`, 15, COLORS.cream));
+    c.add(bodyText(this, cx, 1054, 'The enemy blocks the path. Fight when ready.', 14, COLORS.gold));
     c.add(
-      retroButton(this, cx, 1140, 'COMBATIR', {
+      retroButton(this, cx, 1140, 'FIGHT', {
         variant: 'maroon',
         width: CONTENT_W,
         height: 90,
@@ -713,15 +713,15 @@ export class RunPlayScene extends Phaser.Scene {
     // reanudar la run tras la batalla.
     this.roller?.destroy();
     this.roller = undefined;
-    const heading = enc.isBoss ? 'JEFE FINAL' : `ENCUENTRO ${enc.index + 1} / ${ENCOUNTER_COUNT}`;
+    const heading = enc.isBoss ? 'FINAL BOSS' : `ENCOUNTER ${enc.index + 1} / ${ENCOUNTER_COUNT}`;
     // La moral ya viene aplicada por la sim; el texto solo explica la consecuencia.
     const note = enc.won
       ? enc.isBoss
-        ? '¡Jefe derrotado! +10 a TODAS las estadísticas al acuñar.'
-        : 'Encuentro superado. La moral del equipo sube.'
+        ? 'Boss defeated! +10 to ALL stats when minting.'
+        : 'Encounter cleared. Team morale rises.'
       : enc.isBoss
-        ? 'El jefe te supera. Pierdes el bono de +10 (conservas a tu general).'
-        : 'Derrota. ¡La moral del equipo se desploma!';
+        ? 'The boss overpowers you. You lose the +10 bonus (you keep your general).'
+        : 'Defeat. Team morale collapses!';
 
     this.scene.launch('PvpCombat', {
       battleResult: enc.battle,
@@ -747,7 +747,7 @@ export class RunPlayScene extends Phaser.Scene {
       this.scene.start('Home');
     } catch (err: any) {
       hide();
-      toast(this, err.message || 'Error al acuñar', COLORS.danger);
+      toast(this, err.message || 'Mint failed', COLORS.danger);
     }
   }
 }

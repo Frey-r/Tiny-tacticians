@@ -13,11 +13,11 @@ export function validateActionLog(
   opts: { requireComplete?: boolean } = {}
 ): { isValid: boolean; error?: string } {
   if (!Array.isArray(deckSnapshot) || deckSnapshot.length === 0) {
-    return { isValid: false, error: 'El deckSnapshot debe ser un arreglo no vacío.' };
+    return { isValid: false, error: 'deckSnapshot debe ser un array no vacío.' };
   }
 
   if (!Array.isArray(actionLog)) {
-    return { isValid: false, error: 'El actionLog debe ser un arreglo.' };
+    return { isValid: false, error: 'actionLog debe ser un array.' };
   }
 
   // El cliente simula de forma INCREMENTAL (logs parciales tras cada decisión),

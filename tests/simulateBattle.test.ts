@@ -9,7 +9,7 @@ const mockGeneralA: General = {
   stats: { ofe: 45, def: 20, man: 15 },
   power: 83,
   tier: 2,
-  abilities: ['Furia de Combate'],
+  abilities: ['Battle Fury'],
   seed: 'seed1',
   schemaVersion: 1,
   createdAt: Date.now(),
@@ -22,7 +22,7 @@ const mockGeneralB: General = {
   stats: { ofe: 20, def: 45, man: 20 },
   power: 89,
   tier: 2,
-  abilities: ['Baluarte Férreo'],
+  abilities: ['Iron Bulwark'],
   seed: 'seed2',
   schemaVersion: 1,
   createdAt: Date.now(),
@@ -73,10 +73,10 @@ describe('simulateBattle (deterministic combat)', () => {
       expect(r.lethal).toBe(r.defenderHpAfter <= 0);
     }
 
-    // General A tiene 'Furia de Combate' (sin RNG) y B 'Baluarte Férreo' (rama else):
+    // General A tiene 'Battle Fury' (sin RNG) y B 'Iron Bulwark' (rama else):
     // ambas deben aparecer en abilityProcs en algún momento.
     const allProcs = result.rounds.flatMap((r) => r.abilityProcs ?? []);
-    expect(allProcs).toContain('Furia de Combate');
-    expect(allProcs).toContain('Baluarte Férreo');
+    expect(allProcs).toContain('Battle Fury');
+    expect(allProcs).toContain('Iron Bulwark');
   });
 });

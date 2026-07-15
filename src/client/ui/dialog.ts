@@ -62,7 +62,7 @@ export class DialogBox {
     this.scene = scene;
     this.full = line.text;
     this.onAdvance = opts.onAdvance;
-    this.hint = opts.hint ?? '▶ toca para continuar';
+    this.hint = opts.hint ?? '▶ tap to continue';
     const depth = opts.depth ?? 800;
     const big = opts.big ?? false;
     const side = line.side ?? 'left';

@@ -1,4 +1,4 @@
-# Bannerfall
+# Tiny Tacticians
 
 > Forge unique generals in seeded training **runs**, send them into an **asynchronous ghost
 > arena**, and grow your settlement between battles. A turn-based tactics game built on
@@ -11,9 +11,9 @@
 
 ---
 
-## 🎯 What is Bannerfall?
+## 🎯 What is Tiny Tacticians?
 
-Bannerfall is a competitive, community-driven tactics game that lives inside a Reddit post.
+Tiny Tacticians is a competitive, community-driven tactics game that lives inside a Reddit post.
 You don't fight in real time — you **forge a general** through a short training run, and that
 general becomes a **ghost** that other redditors in your community will face in the arena. Every
 player who plays seeds opponents for everyone else, and a shared leaderboard and a daily challenge

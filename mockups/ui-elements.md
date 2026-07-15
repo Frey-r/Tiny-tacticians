@@ -10,7 +10,7 @@ en 3 sub-carpetas:
 
 Estado: ✅ ya integrado en el código (`assets.ts`) · ⬜ disponible pero sin usar todavía.
 
-| Carpeta / archivo | Qué es (visual) | Para qué sirve en Bannerfall | Estado |
+| Carpeta / archivo | Qué es (visual) | Para qué sirve en Tiny Tacticians | Estado |
 |---|---|---|---|
 | `Banners/Banner.png` + `Banner_Slots.png` | Panel rectangular tipo madera/pergamino azul oscuro, esquinas redondeadas y borde negro grueso. `_Slots` es la guía 9-slice (3×3) de la misma textura. | Fondo de paneles/diálogos: ya expuesto como `PANEL.banner` en `assets.ts`. | ✅ (Banner) / ⬜ (Banner_Slots, solo guía de recorte) |
 | `Bars/BigBar_Base`, `BigBar_Fill`, `SmallBar_Base`, `SmallBar_Fill` | Barra alargada de extremos redondeados. "Base" = fondo bisel vacío; "Fill" = franja de color con brillo, pensada para recortar en X según progreso. | Barra de vida/energía en combate (RunPlayScene, PvpCombatScene), XP de consejeros, progreso de reclutamiento. | ✅ SmallBar en `hpBar` (fill horneado en gris y tintado verde/rojo) / ⬜ BigBar |
