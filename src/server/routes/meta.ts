@@ -6,6 +6,9 @@ import { seedNPCs } from '../core/npc.ts';
 import { getUserProfile, getUserConsejeros, levelConsejero } from '../core/rewards.ts';
 import { checkAndLockIdempotency, saveIdempotency } from '../core/idempotency.ts';
 import { checkRateLimit } from '../core/rateLimit.ts';
+import { isCurrentUserModerator, getSettingBoolean } from '../core/moderator.ts';
+import { redis } from '../devvitProxy/index.ts';
+import { keys } from '../core/keys.ts';
 
 const CONSEJERO_LEVEL_PER_HOUR = 60; // anti-abuso (security.spec §Rate Limiting)
 
@@ -17,7 +20,35 @@ router.get('/profile', async (req, res) => {
     logDevvitDiag('api/profile', req);
     const userId = getCurrentUserId();
     const profile = await getUserProfile(userId);
-    res.json(profile);
+
+    const isMod = await isCurrentUserModerator(userId);
+    const isEventEnabled = await getSettingBoolean('enableFirstRunEvent', false);
+    if (isEventEnabled && isMod) {
+      delete profile.onboardedAt;
+    }
+
+    res.json({
+      ...profile,
+      isModerator: isMod,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Internal Server Error' });
+  }
+});
+
+// POST /api/profile/reset-onboarding - Reset onboarding state (moderators only)
+router.post('/profile/reset-onboarding', async (req, res) => {
+  try {
+    const userId = getCurrentUserId();
+    const isMod = await isCurrentUserModerator(userId);
+    if (!isMod) {
+      return res.status(403).json({ error: 'FORBIDDEN: Solo los moderadores pueden reiniciar el onboarding.' });
+    }
+
+    const userKey = keys.user(userId);
+    // Setting onboardedAt to empty string makes it invalid/non-finite, effectively resetting it
+    await redis.hSet(userKey, { onboardedAt: '' });
+    res.json({ ok: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Internal Server Error' });
   }

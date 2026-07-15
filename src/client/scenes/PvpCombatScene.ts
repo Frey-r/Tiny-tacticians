@@ -40,6 +40,11 @@ interface CombatData {
   /** Modo overlay (encuentro de run): al terminar NO cambia de escena, sino que
    *  invoca este callback para que la escena que la lanzó reanude su flujo. */
   onDone?: () => void;
+  /** Duración por ronda en ms (default 850). La cinemática de intro la sube para
+   *  una batalla lenta y dramática. */
+  stepMs?: number;
+  /** Oculta el botón de saltar (batallas scriptadas que se deben ver enteras). */
+  hideSkip?: boolean;
 }
 
 /* ---- Unidad visual: sprite + estado + comportamientos --------- */
@@ -152,6 +157,7 @@ export class PvpCombatScene extends Phaser.Scene {
   private cx = GAME_W / 2;
   private bandY = 700;
   private stepMs = 850;
+  private hideSkip = false;
   private finished = false;
 
   private units: Record<UnitColor, BattleUnit[]> = { blue: [], red: [] };
@@ -180,6 +186,8 @@ export class PvpCombatScene extends Phaser.Scene {
     this.note = data.note;
     this.title = data.title ?? '⚔️ Simulador de Batalla ⚔️';
     this.onDone = data.onDone;
+    this.stepMs = data.stepMs ?? 850;
+    this.hideSkip = data.hideSkip ?? false;
     this.finished = false;
     this.units = { blue: [], red: [] };
     this.aliveCount = { blue: ARMY_SIZE, red: ARMY_SIZE };
@@ -485,6 +493,7 @@ export class PvpCombatScene extends Phaser.Scene {
 
   /* ---- Controles ---------------------------------------------- */
   private buildSkipControl(): void {
+    if (this.hideSkip) return;
     this.skipBtn?.destroy();
     const c = this.add.container(0, 0);
     this.skipBtn = c;

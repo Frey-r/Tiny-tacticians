@@ -5,10 +5,10 @@
    ============================================================ */
 import Phaser from 'phaser';
 import { COLORS, hex, GAME_W, GAME_H, PAD, CONTENT_W } from '../ui/theme.ts';
-import { retroButton, resourcePill, titleText, retroPanel } from '../ui/widgets.ts';
+import { retroButton, resourcePill, titleText, retroPanel, loadingOverlay, toast } from '../ui/widgets.ts';
 import { TERRAIN } from '../assets.ts';
 import { store, loadUserData } from '../state.ts';
-import { getDevUserId } from '../api.ts';
+import { api, getDevUserId } from '../api.ts';
 
 export class HomeScene extends Phaser.Scene {
   private statusBar?: Phaser.GameObjects.Container;
@@ -209,6 +209,8 @@ export class HomeScene extends Phaser.Scene {
     }
     if (this.jugarModal) return;
 
+    const isMod = store.profile?.isModerator === true;
+
     const modal = this.add.container(0, 0).setDepth(100);
     const backdrop = this.add
       .rectangle(0, 0, GAME_W, GAME_H, 0x0a0806, 0.72)
@@ -216,9 +218,15 @@ export class HomeScene extends Phaser.Scene {
       .setInteractive();
     const cx = GAME_W / 2;
     const cy = GAME_H / 2;
-    const panel = retroPanel(this, cx, cy, 620, 440, COLORS.panelDark);
-    const title = titleText(this, cx, cy - 160, '¿Qué quieres hacer?', 18, COLORS.cream);
-    const run = retroButton(this, cx, cy - 60, 'CORRER RUN', {
+    
+    const panelHeight = isMod ? 540 : 440;
+    const panel = retroPanel(this, cx, cy, 620, panelHeight, COLORS.panelDark);
+    
+    const titleY = isMod ? cy - 210 : cy - 160;
+    const title = titleText(this, cx, titleY, '¿Qué quieres hacer?', 18, COLORS.cream);
+    
+    const runY = isMod ? cy - 110 : cy - 60;
+    const run = retroButton(this, cx, runY, 'CORRER RUN', {
       variant: 'grey',
       width: 540,
       height: 76,
@@ -228,7 +236,9 @@ export class HomeScene extends Phaser.Scene {
         this.scene.start('RunSetup');
       },
     });
-    const pvp = retroButton(this, cx, cy + 40, 'PVP / ARENA', {
+    
+    const pvpY = isMod ? cy - 10 : cy + 40;
+    const pvp = retroButton(this, cx, pvpY, 'PVP / ARENA', {
       variant: 'grey',
       width: 540,
       height: 76,
@@ -238,14 +248,43 @@ export class HomeScene extends Phaser.Scene {
         this.scene.start('Pvp');
       },
     });
-    const close = retroButton(this, cx, cy + 150, 'CERRAR', {
+
+    const elements: Phaser.GameObjects.GameObject[] = [backdrop, panel, title, run, pvp];
+
+    if (isMod) {
+      const resetTutorial = retroButton(this, cx, cy + 90, 'FORZAR TUTORIAL', {
+        variant: 'grey',
+        width: 540,
+        height: 76,
+        fontSize: 16,
+        onClick: async () => {
+          this.toggleJugarModal(false);
+          const hide = loadingOverlay(this, 'REINICIANDO...');
+          try {
+            await api.post('/api/profile/reset-onboarding');
+            await loadUserData();
+            hide();
+            this.scene.start('Intro');
+          } catch (err: any) {
+            hide();
+            toast(this, err.message || 'Error al reiniciar', COLORS.danger);
+          }
+        },
+      });
+      elements.push(resetTutorial);
+    }
+    
+    const closeY = isMod ? cy + 200 : cy + 150;
+    const close = retroButton(this, cx, closeY, 'CERRAR', {
       variant: 'maroon',
       width: 320,
       height: 60,
       fontSize: 13,
       onClick: () => this.toggleJugarModal(false),
     });
-    modal.add([backdrop, panel, title, run, pvp, close]);
+    elements.push(close);
+
+    modal.add(elements);
     this.jugarModal = modal;
   }
 }

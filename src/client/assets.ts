@@ -529,4 +529,27 @@ for (const faction of Object.keys(ENEMY_UNIT_DEFS) as EnemyFaction[]) {
   }
 }
 
+/* ============================================================
+   Cinemática de intro (primera run) — cara del enemigo (retrato de
+   diálogo) y panda maestro. Se cargan/animan DIFERIDOS en IntroScene
+   (solo se ven una vez), no en el arranque global.
+   ============================================================ */
+import enemyBossFace from './assets/sprites/Enemies/Enemy Avatars/Enemy Avatars_09.png';
+import pandaRun from './assets/sprites/Enemies/Enemies/Panda/Panda_Run.png';
+import pandaIdle from './assets/sprites/Enemies/Enemies/Panda/Panda_Idle.png';
+
+/** Retrato estático (256x256) del JEFE FINAL (minotauro cornudo) para el diálogo
+ *  de intro — coincide con la facción `warlord`/Minotaur de su ejército. */
+export const CUTSCENE = {
+  enemyBossFace,
+  enemyBossKey: 'cutscene_enemy',
+} as const;
+
+/** Hojas animadas del panda maestro. Frames 256x256 (medidos del PNG:
+ *  Run 1536/256 = 6 frames, Idle 2560/256 = 10 frames). */
+export const PANDA_SHEETS: AnimSheet[] = [
+  { texKey: 'panda_run', url: pandaRun, frameW: 256, frameH: 256, frames: 6, frameRate: 12, repeat: -1 },
+  { texKey: 'panda_idle', url: pandaIdle, frameW: 256, frameH: 256, frames: 10, frameRate: 8, repeat: -1 },
+];
+
 export { UI };

@@ -4,7 +4,18 @@ import { fileURLToPath } from 'url';
 import { once } from 'node:events';
 import type { Request, Response, NextFunction } from 'express';
 import { localContextStorage } from './devvitProxy/index.ts';
+import { Devvit, SettingScope } from '@devvit/public-api';
 import { seedNPCs } from './core/npc.ts';
+
+Devvit.addSettings([
+  {
+    type: 'boolean',
+    name: 'enableFirstRunEvent',
+    label: 'Activar evento de primera run (solo mods)',
+    defaultValue: false,
+    scope: SettingScope.Installation,
+  },
+]);
 
 // Routers
 import metaRouter from './routes/meta.ts';

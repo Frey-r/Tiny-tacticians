@@ -165,6 +165,10 @@ export interface UserProfile {
   gold: number;
   settlementLevel: number;
   schemaVersion: number;
+  /** Epoch ms en que el usuario completó la primera run (acuñó su primer general).
+   *  Ausente = usuario nuevo → dispara la cinemática de intro + tutorial guiado. */
+  onboardedAt?: number;
+  isModerator?: boolean;
 }
 
 export interface DailyModifier {

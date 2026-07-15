@@ -44,12 +44,15 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
 
   const goldStr = await redis.hGet(userKey, 'gold');
   const levelStr = await redis.hGet(userKey, 'settlementLevel');
+  const onboardedStr = await redis.hGet(userKey, 'onboardedAt');
+  const onboardedAt = onboardedStr ? parseInt(onboardedStr, 10) : undefined;
 
   return {
     userId,
     gold: goldStr ? parseInt(goldStr, 10) : INITIAL_GOLD,
     settlementLevel: levelStr ? parseInt(levelStr, 10) : INITIAL_SETTLEMENT_LEVEL,
     schemaVersion: 1,
+    ...(onboardedAt && Number.isFinite(onboardedAt) ? { onboardedAt } : {}),
   };
 }
 

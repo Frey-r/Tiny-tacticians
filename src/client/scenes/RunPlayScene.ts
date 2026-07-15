@@ -33,6 +33,7 @@ import {
   outcomeBanner,
 } from '../ui/widgets.ts';
 import { DiceRoller } from '../ui/diceRoller.ts';
+import { TutorialCoach } from '../ui/tutorialCoach.ts';
 import { grassField } from '../ui/terrain.ts';
 import {
   stepRun,
@@ -51,6 +52,7 @@ import {
   ENCOUNTER_COUNT,
 } from '../../shared/sim/index.ts';
 import { loadUserData } from '../state.ts';
+import { PANDA_SHEETS } from '../assets.ts';
 import { api } from '../api.ts';
 import type {
   Affinity,
@@ -66,6 +68,8 @@ interface RunData {
   seed: string;
   name: string;
   advisors: Consejero[];
+  /** Primera run guiada: activa el TutorialCoach (panda) sobre esta escena. */
+  tutorial?: boolean;
 }
 
 /** Paleta de cada tarjeta de stat = color del TIPO de entrenamiento
@@ -99,9 +103,27 @@ export class RunPlayScene extends Phaser.Scene {
   private busy = false;
   private dyn?: Phaser.GameObjects.Container;
   private roller?: DiceRoller;
+  /** Tutorial guiado (primera run): panda que resalta secciones y fuerza acciones. */
+  private tutorial = false;
+  private coach?: TutorialCoach;
+  private tutorFirstTrainDone = false;
+  private tutorAfterTrainPending = false;
 
   constructor() {
     super('RunPlay');
+  }
+
+  preload(): void {
+    // La cara del panda del tutorial: normalmente ya la cargó IntroScene (las
+    // texturas persisten en el juego), pero la cargamos aquí también para que la
+    // primera run guiada sea autosuficiente si se entra sin pasar por la intro.
+    if (this.tutorial) {
+      for (const s of PANDA_SHEETS) {
+        if (!this.textures.exists(s.texKey)) {
+          this.load.spritesheet(s.texKey, s.url, { frameWidth: s.frameW, frameHeight: s.frameH });
+        }
+      }
+    }
   }
 
   init(data: RunData): void {
@@ -118,12 +140,20 @@ export class RunPlayScene extends Phaser.Scene {
     this.pendingEncounter = null;
     this.activeThisTurn = new Set<string>();
     this.busy = false;
+    this.tutorial = data.tutorial ?? false;
+    this.coach = undefined;
+    this.tutorFirstTrainDone = false;
+    this.tutorAfterTrainPending = false;
   }
 
   create(): void {
     this.cameras.main.setBackgroundColor(COLORS.screen);
     screenTopbar(this, `Campamento: ${this.run.name}`, () => this.scene.start('Home'));
     this.render();
+    if (this.tutorial) {
+      this.coach = new TutorialCoach(this);
+      this.coach.start();
+    }
   }
 
   private render(): void {
@@ -154,6 +184,18 @@ export class RunPlayScene extends Phaser.Scene {
     } else {
       this.recovery(c);
       this.trainingCards(c);
+    }
+
+    // Tutorial: el panda explica cada sección la primera vez que aparece.
+    if (this.tutorial && this.coach) {
+      const state = this.pendingEncounter
+        ? 'encounter'
+        : this.turn >= RUN_TURNS
+          ? 'completion'
+          : isEventTurn(this.run.seed, this.turn)
+            ? 'event'
+            : 'train';
+      if (state !== 'train') this.coach.onState(state);
     }
   }
 
@@ -486,6 +528,13 @@ export class RunPlayScene extends Phaser.Scene {
     this.turn += 1;
     this.queueEncounter(tr.turn);
     this.render();
+    // Tutorial: el 1er entrenamiento cierra el paso forzado del panda; tras
+    // asentarse el dado, el panda explica la tirada (ver playDiceThenFeedback).
+    if (this.tutorial && this.coach && !this.tutorFirstTrainDone) {
+      this.tutorFirstTrainDone = true;
+      this.tutorAfterTrainPending = true;
+      this.coach.notifyAction('train');
+    }
     this.playDiceThenFeedback(tr);
   }
 
@@ -544,12 +593,22 @@ export class RunPlayScene extends Phaser.Scene {
           this.busy = false;
           this.showTrainFeedback(tr);
           this.flashUnlocks(tr);
+          this.tutorAfterFirstTrain();
         },
       });
       this.roller.roll(tr.dice);
     } else {
       this.showTrainFeedback(tr);
       this.flashUnlocks(tr);
+      this.tutorAfterFirstTrain();
+    }
+  }
+
+  /** Tras asentarse el dado del 1er entrenamiento del tutorial, el panda explica la tirada. */
+  private tutorAfterFirstTrain(): void {
+    if (this.tutorAfterTrainPending) {
+      this.tutorAfterTrainPending = false;
+      this.coach?.afterFirstTrain();
     }
   }
 

@@ -2,7 +2,7 @@ import { redis } from '../devvitProxy/index.ts';
 import { keys } from './keys.ts';
 import { DeckSnapshot, ActionLog, General, Consejero } from '../../shared/types/index.ts';
 import { simulateRun } from '../../shared/sim/simulateRun.ts';
-import { getUserConsejeros } from './rewards.ts';
+import { getUserConsejeros, getUserProfile } from './rewards.ts';
 import { checkRateLimit } from './rateLimit.ts';
 import { LOADOUT_SIZE } from '../../shared/sim/balance.ts';
 
@@ -126,6 +126,14 @@ export async function submitRun(
 
   // 7. Consume the run (delete it so it cannot be replayed)
   await redis.del(runKey);
+
+  // 8. Marcar el onboarding como completado en la PRIMERA acuñación. Ata el flag
+  //    "onboardedAt" a "completó la primera run y acuñó un general": mientras esté
+  //    ausente, el cliente muestra la cinemática de intro + tutorial guiado.
+  const profile = await getUserProfile(userId);
+  if (!profile.onboardedAt) {
+    await redis.hSet(keys.user(userId), { onboardedAt: String(Date.now()) });
+  }
 
   return general;
 }

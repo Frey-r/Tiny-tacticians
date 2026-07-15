@@ -14,6 +14,7 @@ import { ReclutamientoScene } from './scenes/ReclutamientoScene.ts';
 import { PvpScene } from './scenes/PvpScene.ts';
 import { PvpCombatScene } from './scenes/PvpCombatScene.ts';
 import { EventosScene } from './scenes/EventosScene.ts';
+import { IntroScene } from './scenes/IntroScene.ts';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -43,6 +44,7 @@ const config: Phaser.Types.Core.GameConfig = {
     PvpScene,
     PvpCombatScene,
     EventosScene,
+    IntroScene,
   ],
 };
 

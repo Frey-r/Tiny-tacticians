@@ -7,6 +7,7 @@ import Phaser from 'phaser';
 import { COLORS, hex, GAME_W, GAME_H, CONTENT_W, TEXT_RES, fontPx, FONT } from '../ui/theme.ts';
 import { ICON, SPRITE, AVATARS, PANEL, TERRAIN, TERRAIN_SHEETS, DICE, MUSIC, UI_BAKES } from '../assets.ts';
 import { bakeUiTextures } from '../ui/bake.ts';
+import { store, loadUserData } from '../state.ts';
 
 // Spritesheets animados (frames horizontales). Tamaños reales del pack:
 // warrior 1536x192 (8x192), archer 1152x192 (6x192), lancer 3840x320 (12x320).
@@ -120,6 +121,32 @@ export class BootScene extends Phaser.Scene {
       this.sound.play('background_music', { loop: true, volume: 0.35 });
     }
 
+    void this.decideFirstScene();
+  }
+
+  /** Primera escena: cinemática de intro para usuarios nuevos (perfil sin
+   *  `onboardedAt`), Home para el resto. `?intro=1` fuerza la intro (pruebas/
+   *  replay), `?home=1` la salta; si el perfil no está disponible (dev/sin
+   *  servidor) NO atrapamos al usuario en la intro y vamos a Home. */
+  private async decideFirstScene(): Promise<void> {
+    const params = new URLSearchParams(location.search);
+    if (params.has('home')) {
+      this.scene.start('Home');
+      return;
+    }
+    if (params.has('intro')) {
+      this.scene.start('Intro');
+      return;
+    }
+    try {
+      await loadUserData();
+      if (!store.profile?.onboardedAt) {
+        this.scene.start('Intro');
+        return;
+      }
+    } catch {
+      /* perfil no disponible: caer a Home */
+    }
     this.scene.start('Home');
   }
 
